@@ -1,0 +1,26 @@
+schema = "unienv/recipe/v0"
+id = "ocr"
+summary = "Recognise text in images and scanned PDFs (English by default)"
+default = true
+maintainers = ["github:rupeshbharambe24"]
+license_note = "tesseract Apache-2.0"
+
+[python]
+packages = ["pytesseract"]
+imports = ["pytesseract"]
+
+[system.macos]
+brew = ["tesseract"]
+
+[system.debian]
+apt = ["tesseract-ocr"]
+
+[verify]
+bins = ["tesseract"]
+
+[agent]
+notes = """
+- OCR an image: `tesseract image.png - ` (prints text) or `pytesseract.image_to_string(...)` in `ue-py`.
+- OCR a scanned PDF: render pages with `pdftoppm -png -r 300`, then run tesseract on each page.
+- Only English is installed by default. For other languages: `unienv need --bin tesseract-lang`.
+"""

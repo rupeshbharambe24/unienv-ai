@@ -1,0 +1,43 @@
+schema = "unienv/recipe/v0"
+id = "office"
+summary = "Create, read, edit and convert Word, Excel and PowerPoint files"
+default = true
+maintainers = ["github:rupeshbharambe24"]
+license_note = "LibreOffice MPL-2.0; pandoc GPL-2.0-or-later"
+
+[python]
+packages = [
+  "python-docx>=1.1",
+  "openpyxl>=3.1",
+  "xlsxwriter>=3.2",
+  "python-pptx>=1.0",
+  "markitdown[docx,pptx,xlsx]>=0.1",
+  "lxml",
+  "defusedxml",
+  "Pillow",
+]
+imports = ["docx", "openpyxl", "xlsxwriter", "pptx", "markitdown", "lxml", "defusedxml", "PIL"]
+
+[node]
+packages = ["docx", "pptxgenjs"]
+modules = ["docx", "pptxgenjs"]
+
+[system.macos]
+brew = ["pandoc"]
+cask = ["libreoffice"]
+
+[system.debian]
+apt = ["pandoc", "libreoffice-writer", "libreoffice-calc", "libreoffice-impress"]
+
+[verify]
+bins = ["pandoc", "soffice-safe"]
+
+[agent]
+notes = """
+- Read any .docx/.xlsx/.pptx as Markdown: `ue-py -m markitdown file.docx`
+- Edit Word files with python-docx (`import docx`), Excel with openpyxl, PowerPoint with python-pptx, all via `ue-py`.
+- Create new Word/PowerPoint files from JavaScript with `ue-node` (the `docx` and `pptxgenjs` packages are preinstalled; use `require`).
+- Convert between formats with pandoc: `pandoc in.md -o out.docx`, `pandoc in.docx -t markdown`.
+- Convert or render with LibreOffice through `soffice-safe` (never plain `soffice`): `soffice-safe --convert-to pdf --outdir out/ file.docx`. It uses a throwaway profile, so parallel or sandboxed runs don't lock or silently do nothing.
+- openpyxl writes formulas without cached values. To get computed values, round-trip through LibreOffice: `soffice-safe --convert-to xlsx --outdir out/ file.xlsx`.
+"""

@@ -1,0 +1,27 @@
+schema = "unienv/recipe/v0"
+id = "pdf"
+summary = "Read, split, merge, render and generate PDF files"
+default = true
+maintainers = ["github:rupeshbharambe24"]
+license_note = "poppler GPL-2.0; ghostscript AGPL-3.0; qpdf Apache-2.0"
+
+[python]
+packages = ["pypdf>=5", "pdfplumber", "pypdfium2", "reportlab", "pdf2image", "markitdown[pdf]>=0.1"]
+imports = ["pypdf", "pdfplumber", "pypdfium2", "reportlab", "pdf2image"]
+
+[system.macos]
+brew = ["poppler", "qpdf", "ghostscript"]
+
+[system.debian]
+apt = ["poppler-utils", "qpdf", "ghostscript"]
+
+[verify]
+bins = ["pdftotext", "pdftoppm", "qpdf", "gs"]
+
+[agent]
+notes = """
+- Extract text before reading a large PDF into context: `pdftotext -layout file.pdf out.txt`, then read only the parts you need.
+- Render pages to images: `pdftoppm -png -r 100 -f 1 -l 3 file.pdf out/page`.
+- Split, merge, decrypt or repair: `qpdf` (e.g. `qpdf in.pdf --pages . 1-5 -- out.pdf`).
+- Tables and positioned text: `pdfplumber`; generate new PDFs: `reportlab`; low-level edits: `pypdf`. All via `ue-py`.
+"""

@@ -1,0 +1,20 @@
+schema = "unienv/recipe/v0"
+id = "fonts"
+summary = "Metric-compatible Office fonts and CJK fonts so LibreOffice renders match Word (opt-in)"
+default = false
+maintainers = ["github:rupeshbharambe24"]
+license_note = "All fonts OFL-1.1"
+
+[system.macos]
+cask = ["font-carlito", "font-caladea", "font-liberation", "font-noto-sans-cjk"]
+
+[system.debian]
+apt = ["fonts-crosextra-carlito", "fonts-crosextra-caladea", "fonts-liberation2", "fonts-noto-cjk"]
+
+[verify]
+bins = []
+
+[agent]
+notes = """
+- Carlito (= Calibri metrics), Caladea (= Cambria), Liberation (= Arial/Times/Courier) and Noto CJK are installed, so LibreOffice renders keep the original layout.
+"""

@@ -1,0 +1,20 @@
+schema = "unienv/recipe/v0"
+id = "core"
+summary = "Base tools every agent expects: uv, Node.js, ripgrep, jq"
+always = true
+maintainers = ["github:rupeshbharambe24"]
+
+[system.macos]
+brew = ["uv", "node", "ripgrep", "jq"]
+
+[system.debian]
+apt = ["nodejs", "npm", "ripgrep", "jq"]
+
+[verify]
+bins = ["uv", "node", "rg", "jq"]
+
+[agent]
+notes = """
+- Search code and text with `rg` (ripgrep); it respects .gitignore and is much faster than grep -r.
+- Process JSON on the command line with `jq`.
+"""

@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint
+        run: |
+          python3 -m py_compile src/unienv.py
+          for f in install.sh tests/smoke.sh shims/*; do sh -n "$f"; done
+
+      - name: System packages (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc poppler-utils qpdf ghostscript tesseract-ocr jq ripgrep
+
+      - name: Install (macOS without LibreOffice to keep CI fast)
+        if: runner.os == 'macOS'
+        run: |
+          brew install pandoc poppler qpdf ghostscript tesseract duckdb jq ripgrep
+          ./install.sh --no-system
+
+      - name: Install (Linux)
+        if: runner.os == 'Linux'
+        run: ./install.sh --no-system
+
+      - name: Doctor
+        run: ~/.unienv/bin/unienv doctor --json | tee doctor.json
+
+      - name: Smoke test from a fresh non-interactive shell
+        run: env -i HOME="$HOME" USER="$USER" PATH=/usr/bin:/bin bash -lc tests/smoke.sh
+
+      - name: need + rollback
+        run: |
+          ~/.unienv/bin/unienv need tomli-w
+          ~/.unienv/bin/ue-py -c "import tomli_w"
+          ! ~/.unienv/bin/unienv need this-package-does-not-exist-unienv-ci
+          ~/.unienv/bin/unienv doctor

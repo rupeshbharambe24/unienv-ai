@@ -1,0 +1,36 @@
+schema = "unienv/recipe/v0"
+id = "data"
+summary = "Analyse CSV/Parquet/JSON data, make charts, call web APIs"
+default = true
+maintainers = ["github:rupeshbharambe24"]
+
+[python]
+packages = [
+  "pandas>=2.2",
+  "numpy",
+  "pyarrow",
+  "duckdb",
+  "matplotlib",
+  "tabulate",
+  "requests",
+  "httpx",
+  "beautifulsoup4",
+  "pyyaml",
+]
+imports = ["pandas", "numpy", "pyarrow", "duckdb", "matplotlib", "tabulate", "requests", "httpx", "bs4", "yaml"]
+
+[system.macos]
+brew = ["duckdb"]
+
+[system.debian]
+apt = []
+
+[verify]
+bins = []
+
+[agent]
+notes = """
+- Data work: pandas, numpy, pyarrow, duckdb, matplotlib via `ue-py`. Use `matplotlib.use("Agg")` for headless charts.
+- Query CSV/Parquet files directly with SQL: `duckdb -c "select * from 'file.csv' limit 5"` (macOS) or `import duckdb` in `ue-py`.
+- HTTP: requests or httpx; HTML parsing: beautifulsoup4.
+"""

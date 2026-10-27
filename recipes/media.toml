@@ -1,0 +1,21 @@
+schema = "unienv/recipe/v0"
+id = "media"
+summary = "Convert and edit audio, video and images (opt-in: ~250 MB)"
+default = false
+maintainers = ["github:rupeshbharambe24"]
+license_note = "ffmpeg LGPL/GPL; ImageMagick Apache-2.0-style"
+
+[system.macos]
+brew = ["ffmpeg", "imagemagick"]
+
+[system.debian]
+apt = ["ffmpeg", "imagemagick"]
+
+[verify]
+bins = ["ffmpeg", "magick"]
+
+[agent]
+notes = """
+- Audio/video conversion and trimming: `ffmpeg -i in.mov -c:v libx264 out.mp4`.
+- Image resize/convert: `magick in.png -resize 50% out.jpg`.
+"""
