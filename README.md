@@ -20,7 +20,7 @@
   <a href="#-how-it-works">How it works</a> ·
   <a href="#-batteries">Batteries</a> ·
   <a href="#%EF%B8%8F-commands">Commands</a> ·
-  <a href="docs/agents.md">AI tools</a> ·
+  <a href="docs/ai-tools.md">AI tools</a> ·
   <a href="ROADMAP.md">Roadmap</a> ·
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
@@ -169,7 +169,7 @@ flowchart LR
 3. **Tell every agent.** A managed block in each tool's global instructions, plus a `unienv` skill, lists what's installed and the rules: *use the project's env inside projects, `ue-py` outside, `unienv need` for anything missing.*
 4. **Verify.** `unienv doctor` launches shells from an empty environment, imports every module and checks every agent file.
 
-Details: [How it works](docs/how-it-works.md) · [AI tool integrations](docs/agents.md) · [Troubleshooting](docs/troubleshooting.md)
+Details: [How it works](docs/how-it-works.md) · [AI tool integrations](docs/ai-tools.md) · [Troubleshooting](docs/troubleshooting.md)
 
 ## ⌨️ Commands
 
