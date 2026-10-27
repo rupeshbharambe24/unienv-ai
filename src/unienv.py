@@ -49,6 +49,7 @@ EXTRA_DIRS = ["/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin",
 SHELL_BEGIN, SHELL_END = "# >>> unienv >>>", "# <<< unienv <<<"
 MD_BEGIN, MD_END = "<!-- >>> unienv (managed block, do not edit) >>> -->", "<!-- <<< unienv <<< -->"
 LAUNCH_AGENT = HOME / "Library/LaunchAgents/ai.unienv.path.plist"
+SHELL_FILES = [HOME / f for f in (".zshenv", ".profile", ".bashrc", ".bash_profile", ".bash_login")]
 
 # ── output ──────────────────────────────────────────────────────────────────
 
@@ -585,8 +586,10 @@ def sync_agents(manifest: dict, recipes: list[dict], *, only_detected: bool = Tr
 def wire_shells() -> list[str]:
     body = f'[ -f "{ENV_SH}" ] && . "{ENV_SH}"'
     changed = []
-    for rc in (HOME / ".zshenv", HOME / ".profile", HOME / ".bashrc"):
-        if rc.name == ".bashrc" and not rc.exists():
+    for rc in SHELL_FILES:
+        # always wire zsh's .zshenv and the POSIX .profile; bash's own files only if they exist
+        # (login bash reads .bash_profile or .bash_login *instead of* .profile when present)
+        if rc.name not in (".zshenv", ".profile") and not rc.exists():
             continue
         if upsert_block(rc, body, SHELL_BEGIN, SHELL_END):
             changed.append(str(rc).replace(str(HOME), "~"))
@@ -960,7 +963,7 @@ def cmd_wire(args) -> int:
 
 
 def cmd_uninstall(args) -> int:
-    for rc in (HOME / ".zshenv", HOME / ".profile", HOME / ".bashrc"):
+    for rc in SHELL_FILES:
         if remove_block(rc, SHELL_BEGIN, SHELL_END):
             info(f"  removed block from {rc}")
     for a in agent_targets():
