@@ -31,6 +31,7 @@ apt = ["pandoc", "libreoffice-writer", "libreoffice-calc", "libreoffice-impress"
 
 [verify]
 bins = ["pandoc", "soffice-safe"]
+provided_by = { pandoc = "pandoc", soffice-safe = "libreoffice" }
 
 [agent]
 notes = """

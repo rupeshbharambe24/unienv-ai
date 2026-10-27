@@ -66,6 +66,7 @@ Options:
 ./install.sh --batteries office,pdf      # choose batteries
 unienv install --add media,fonts         # opt-in batteries later
 ./install.sh --no-system                 # skip Homebrew packages
+./install.sh --exclude libreoffice       # skip one tool and remember it (`ue need --cask libreoffice` adds it back)
 ./install.sh --dev                       # contributors: run straight from this checkout
 ```
 

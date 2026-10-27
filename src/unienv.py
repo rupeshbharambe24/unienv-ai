@@ -249,7 +249,7 @@ def default_state(recipes: dict) -> dict:
         "version": VERSION,
         "batteries": [k for k, r in recipes.items() if r.get("default") and not r.get("always")],
         "extras": {"python": [], "node": [], "brew": [], "cask": [], "apt": []},
-        "options": {"wire_homebrew": True},
+        "options": {"wire_homebrew": True, "exclude": []},
     }
 
 
@@ -257,7 +257,8 @@ def load_state(recipes: dict) -> dict:
     state = default_state(recipes)
     if STATE_FILE.exists():
         saved = json.loads(STATE_FILE.read_text())
-        state.update({k: v for k, v in saved.items() if k in state})
+        state.update({k: v for k, v in saved.items() if k in state and k != "options"})
+        state["options"].update(saved.get("options", {}))
         for k in default_state(recipes)["extras"]:
             state["extras"].setdefault(k, [])
     return state
@@ -279,15 +280,28 @@ def active_recipes(recipes: dict, state: dict) -> list[dict]:
 
 def wanted(recipes: list[dict], state: dict) -> dict[str, list[str]]:
     pk = platform_key()
-    w = {
+    excluded = set(state["options"].get("exclude", []))
+
+    def system(kind: str) -> list[str]:
+        pkgs = [p for r in recipes for p in r.get("system", {}).get(pk, {}).get(kind, [])]
+        # "libreoffice" also excludes apt's "libreoffice-writer", "libreoffice-calc", ...
+        return [p for p in uniq(pkgs + state["extras"][kind])
+                if not any(p == x or p.startswith(x + "-") for x in excluded)]
+
+    bins, skipped = [], []
+    for r in recipes:
+        provided_by = r.get("verify", {}).get("provided_by", {})
+        for b in r.get("verify", {}).get("bins", []):
+            (skipped if provided_by.get(b) in excluded else bins).append(b)
+    return {
         "python": uniq([p for r in recipes for p in r.get("python", {}).get("packages", [])] + state["extras"]["python"]),
         "node": uniq([p for r in recipes for p in r.get("node", {}).get("packages", [])] + state["extras"]["node"]),
-        "brew": uniq([p for r in recipes for p in r.get("system", {}).get(pk, {}).get("brew", [])] + state["extras"]["brew"]),
-        "cask": uniq([p for r in recipes for p in r.get("system", {}).get(pk, {}).get("cask", [])] + state["extras"]["cask"]),
-        "apt": uniq([p for r in recipes for p in r.get("system", {}).get(pk, {}).get("apt", [])] + state["extras"]["apt"]),
-        "bins": uniq([b for r in recipes for b in r.get("verify", {}).get("bins", [])]),
+        "brew": system("brew"),
+        "cask": system("cask"),
+        "apt": system("apt"),
+        "bins": uniq(bins),
+        "skipped_bins": uniq(skipped),
     }
-    return w
 
 
 # ── installers ──────────────────────────────────────────────────────────────
@@ -596,6 +610,9 @@ def cmd_install(args) -> int:
         if bad:
             die(f"unknown batteries: {', '.join(bad)}. Available: {', '.join(recipes_all)}")
         state["batteries"] = [b for b in req if not recipes_all[b].get("always")]
+    if args.exclude:
+        state["options"]["exclude"] = uniq(state["options"]["exclude"]
+                                           + [x.strip() for x in args.exclude.split(",") if x.strip()])
     if args.add:
         state["batteries"] = uniq(state["batteries"] + [b.strip() for b in args.add.split(",")])
     UNIENV_HOME.mkdir(parents=True, exist_ok=True)
@@ -663,6 +680,7 @@ def cmd_need(args) -> int:
         if f.exists():
             shutil.copy2(f, snap / f"{f.parent.name}__{f.name}")
 
+    state["options"]["exclude"] = [x for x in state["options"]["exclude"] if x not in pkgs]
     state["extras"][kind] = uniq(state["extras"][kind] + new)
     w = wanted(recipes, state)
     try:
@@ -795,6 +813,10 @@ def cmd_doctor(args) -> int:
         else:
             owner = next((r["id"] for r in recipes if b in r.get("verify", {}).get("bins", [])), "?")
             add(f"bin:{b}", "fail", f"{b} not found (battery: {owner})", "unienv install")
+
+    for b in w["skipped_bins"]:
+        add(f"bin:{b}", "info", f"{b} skipped by your choice (exclude: {', '.join(state['options']['exclude'])})",
+            "to add it later: unienv need --cask/--bin <package>")
 
     # Shell wiring: what agents and GUI apps actually see
     target = str(BIN / "ue-py")
@@ -957,6 +979,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("install", help="install batteries and wire every shell and AI tool")
     s.add_argument("--batteries", help="comma-separated list replacing the current selection")
     s.add_argument("--add", help="comma-separated batteries to add (e.g. media,fonts)")
+    s.add_argument("--exclude", help="system packages to skip and remember (e.g. libreoffice)")
     s.add_argument("--no-system", action="store_true", help="skip Homebrew/apt packages")
     s.add_argument("--no-wire", action="store_true", help="don't edit shell startup files")
     s.add_argument("--all-agents", action="store_true", help="write instruction files even for agents not detected")
