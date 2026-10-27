@@ -1,154 +1,262 @@
-# UniEnv AI
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="UniEnv AI: one always-ready environment for every AI tool" width="100%">
+</p>
 
-**One always-ready environment for every AI tool on your machine.**
+<p align="center">
+  <a href="https://github.com/rupeshbharambe24/unienv-ai/actions/workflows/ci.yml"><img src="https://github.com/rupeshbharambe24/unienv-ai/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/rupeshbharambe24/unienv-ai/releases"><img src="https://img.shields.io/github/v/release/rupeshbharambe24/unienv-ai?include_prereleases&color=2dd4bf" alt="Release"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-818cf8" alt="Platform: macOS | Linux">
+  <img src="https://img.shields.io/badge/python-3.12-3776ab?logo=python&logoColor=white" alt="Python 3.12">
+  <a href="#license"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue" alt="License"></a>
+  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome"></a>
+</p>
 
-Ask Claude Code, Codex, Gemini CLI or any other AI agent to "fix this Word file" or "summarise this spreadsheet", and it usually discovers `python-docx` or `openpyxl` is missing, makes a temporary virtualenv, installs everything, does the job, and throws it all away. Next time it does it again. UniEnv AI installs those tools **once**, in one place, and tells **every** AI tool where they are.
+<p align="center">
+  <b>Works with</b> Claude Code · Codex CLI · Gemini CLI · OpenCode · any agent that runs shell commands
+</p>
 
-```console
-$ ./install.sh
-==> System tools          pandoc, LibreOffice, poppler, qpdf, tesseract, duckdb …
-==> Python 3.12 env       python-docx, openpyxl, python-pptx, pandas, pypdf, markitdown …
-==> Node packages         docx, pptxgenjs
-==> Wiring shells and AI tools
-  agents configured: Claude Code, Codex CLI, Gemini CLI
-==> Checking
-  ✓ 21 checks passed
-unienv doctor: all good
+<p align="center">
+  <a href="#-quick-start">Quick start</a> ·
+  <a href="#-how-it-works">How it works</a> ·
+  <a href="#-batteries">Batteries</a> ·
+  <a href="#%EF%B8%8F-commands">Commands</a> ·
+  <a href="docs/agents.md">AI tools</a> ·
+  <a href="ROADMAP.md">Roadmap</a> ·
+  <a href="CONTRIBUTING.md">Contribute</a>
+</p>
 
-$ ue need seaborn          # an agent needs something new: installed once, for every tool (~2 s)
-✓ installed seaborn; available to every AI tool via ue-py
+---
+
+You ask your AI agent to *"fix the table in this Word file"* or *"summarise this spreadsheet"*. Then you watch it:
+
+```text
+✗ ModuleNotFoundError: No module named 'docx'
+✗ error: externally-managed-environment        (Homebrew Python refuses pip)
+  python3 -m venv /tmp/venv-8f2a && pip install python-docx openpyxl …   (again)
+✗ soffice: command not found
 ```
 
-## Why this exists
+**…and next session it does it all again.** Every AI tool, every task, from zero.
 
-AI agents are not bad at environments; they are **blind** to them ([research](docs/research.md)):
+**UniEnv AI** installs those tools **once**, in **one place**, and tells **every AI tool on your machine** where they are.
 
-- **Every command runs in a fresh, non-interactive shell.** `source .venv/bin/activate`, conda, nvm and even Homebrew's PATH (set in `~/.zprofile`) are gone by the next command. Desktop apps get an even smaller PATH, hence the classic MCP `spawn npx ENOENT`.
-- **Models expect a cloud sandbox's tools.** Office/PDF skills assume LibreOffice, pandoc, Poppler and 300+ Python libraries are "preinstalled". A normal laptop has almost none, and Homebrew's Python refuses `pip install` (PEP 668), so agents build throwaway venvs.
-- **Nothing remembers.** The next session, and every other agent, starts from zero.
+```text
+✓ ue-py -c "import docx, openpyxl"      # already there, for every agent, every session
+✓ soffice-safe --convert-to pdf report.docx
+✓ ue need seaborn                        # missing? installed permanently, for everyone, in seconds
+```
 
-The cost is measurable. In SetupBench, even the best model wasted **69%** of its environment-setup steps and used **1.1M tokens per task**. JetBrains found that just telling agents where the right Python is lifted task success from **68% to 98%**.
+<p align="center">
+  <img src="docs/assets/demo.svg" alt="Terminal showing unienv status and unienv doctor: all good" width="780">
+</p>
 
-## What UniEnv does
+## ✨ Why UniEnv
 
-| Problem | UniEnv |
-|---|---|
-| Libraries missing, temp venvs every task | One shared, pinned **Python 3.12** env (`ue-py`) and Node package set (`ue-node`) with document, PDF, OCR and data batteries |
-| System tools missing (pandoc, LibreOffice, Poppler, tesseract) | Installs them with your OS package manager (Homebrew today, apt next) |
-| Agents' shells can't see tools | Wires `~/.zshenv`, `~/.profile`, `~/.bashrc` and `BASH_ENV`, so **`zsh -c`, `bash -lc` and login shells** all see the same PATH |
-| Agents don't know what's installed | Writes a managed block into each agent's global instructions (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, OpenCode) and a **`unienv` skill** for Claude Code and Codex |
-| "Install it again" loops | `unienv need <pkg>` installs **permanently** for every tool, with rollback if it breaks |
-| "Is it broken or just missing?" | `unienv doctor [--json]` checks every tool, every shell mode, every agent file and secrets hygiene |
-| LibreOffice hangs, locks or silently does nothing | `soffice-safe` gives each call a throwaway profile, so it is safe in parallel and in sandboxes |
-| OCR "file not found" on macOS when `TMPDIR` is unset or under `/tmp` (Leptonica rewrites `/tmp` paths) | `env.sh` normalises `TMPDIR` to `/private/tmp`, the same directory under a name that isn't rewritten |
-| Project environments clobbered | UniEnv **never** puts its own `python`/`python3`/`node` on PATH. It uses namespaced `ue-*` commands, and agents are told to keep using a project's own env inside projects. |
+<table>
+<tr>
+<td width="50%" valign="top">
 
-It is **native-first**: no Docker or VM is required, and it runs on the host where your agents already run.
+**🔋 Batteries included**<br>
+Word, Excel, PowerPoint, PDF, OCR and data tools, ready on day one: python-docx, openpyxl, python-pptx, pandas, pypdf, markitdown, pandoc, LibreOffice, Poppler, tesseract, duckdb and more.
 
-## Quick start
+</td>
+<td width="50%" valign="top">
 
-Requirements: macOS with [Homebrew](https://brew.sh) (Linux works for Python/Node batteries; apt support is in progress). [uv](https://docs.astral.sh/uv/) is installed automatically if missing.
+**🤝 Every AI tool, one environment**<br>
+Claude Code, Codex, Gemini CLI and OpenCode each get a managed instruction block and a skill that says exactly what's installed and how to call it.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**🐚 Works in the shells agents really use**<br>
+Agents run every command in a fresh `zsh -c` / `bash -lc`, which skips your `.zshrc`. UniEnv wires every shell mode, and `doctor` proves it.
+
+</td>
+<td valign="top">
+
+**♻️ Grows instead of resetting**<br>
+`unienv need <pkg>` installs permanently for every tool, takes about 2 s with a warm cache, and rolls back automatically if anything breaks.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**🩺 Self-diagnosing**<br>
+`unienv doctor --json` checks tools, imports, shell wiring, agent files and secrets hygiene, so agents can diagnose instead of blindly reinstalling.
+
+</td>
+<td valign="top">
+
+**🧹 Never in your way**<br>
+No `python`/`node` shadowing (only namespaced `ue-*` commands), project envs come first, no Docker, no telemetry, and `unienv uninstall` removes every line it wrote.
+
+</td>
+</tr>
+</table>
+
+## 🚀 Quick start
 
 ```sh
-git clone https://github.com/rupeshbharambe24/unienv-ai.git
-cd unienv-ai
-./install.sh              # default batteries: core, office, pdf, data, ocr
+curl -fsSL https://raw.githubusercontent.com/rupeshbharambe24/unienv-ai/main/install.sh | bash
 ```
 
-Then open a new terminal or restart your AI tools. Check everything with:
+Or from a clone:
+
+```sh
+git clone https://github.com/rupeshbharambe24/unienv-ai.git && cd unienv-ai && ./install.sh
+```
+
+The first install shows an interactive picker for the batteries you want. Then **restart your AI tools** (or open a new terminal) and check:
 
 ```sh
 unienv doctor
 ```
 
-Options:
+> **Requirements:** macOS with [Homebrew](https://brew.sh), or Linux (Python/Node batteries work everywhere; apt packages are listed for you to install). [uv](https://docs.astral.sh/uv/) is installed automatically if missing.
+
+<details>
+<summary><b>Install options</b></summary>
 
 ```sh
-./install.sh --batteries office,pdf      # choose batteries
-unienv install --add media,fonts         # opt-in batteries later
-./install.sh --no-system                 # skip Homebrew packages
-./install.sh --exclude libreoffice       # skip one tool and remember it (`ue need --cask libreoffice` adds it back)
+./install.sh --batteries office,pdf      # choose batteries non-interactively
+./install.sh --exclude libreoffice       # skip a tool and remember it (`ue need --cask libreoffice` adds it back)
+./install.sh --no-system                 # skip Homebrew/apt entirely
 ./install.sh --dev                       # contributors: run straight from this checkout
+unienv install --add media,fonts         # add opt-in batteries later
+unienv update                            # get the latest version
+```
+</details>
+
+### Try it
+
+Open your AI tool **outside any project** and ask:
+
+> *"Create a Word document summarising the PDF in my Downloads folder, then convert it to PDF."*
+
+It should use `ue-py`, `pdftotext` and `soffice-safe` directly, with no virtualenv and no installs.
+
+## 🔋 Batteries
+
+| Battery | Default | What agents get |
+|---|:---:|---|
+| `core` | always | uv, Node.js, ripgrep, jq |
+| `office` | ✅ | python-docx, openpyxl, xlsxwriter, python-pptx, markitdown, docx-js, pptxgenjs, pandoc, LibreOffice (`soffice-safe`) |
+| `pdf` | ✅ | pypdf, pdfplumber, pypdfium2, reportlab, pdf2image, Poppler (`pdftotext`, `pdftoppm`), qpdf, Ghostscript |
+| `data` | ✅ | pandas, numpy, pyarrow, duckdb, matplotlib, requests, httpx, beautifulsoup4, pyyaml |
+| `ocr` | ✅ | tesseract + pytesseract (English; `ue need --bin tesseract-lang` for more) |
+| `media` | opt-in | ffmpeg, ImageMagick |
+| `fonts` | opt-in | Carlito, Caladea, Liberation, Noto CJK (so LibreOffice renders match Word) |
+
+Each battery is a small, declarative [TOML recipe](recipes/office.toml). **Adding one is the easiest way to contribute**: LaTeX, browsers, diagrams, GIS, audio… see [CONTRIBUTING.md](CONTRIBUTING.md#writing-a-recipe).
+
+## 🧭 How it works
+
+```mermaid
+flowchart LR
+    R["recipes/*.toml"] --> I["unienv install / need"]
+    I --> H["~/.unienv<br/>ue-py · ue-node · soffice-safe<br/>manifest.json"]
+    H --> S["Shell wiring<br/>.zshenv · .profile · BASH_ENV"]
+    H --> A["Agent wiring<br/>CLAUDE.md · AGENTS.md · GEMINI.md · skills"]
+    S --> T(["Every agent shell:<br/>zsh -c · bash -lc"])
+    A --> T
 ```
 
-## Commands
+1. **Install once.** Homebrew installs the system tools, uv builds a pinned **Python 3.12** env, and npm builds the Node packages, all under `~/.unienv`.
+2. **Wire every shell.** One guarded line in `~/.zshenv` / `~/.profile` / `~/.bashrc` sources `~/.unienv/env.sh`, so the bare shells agents open see the tools too.
+3. **Tell every agent.** A managed block in each tool's global instructions, plus a `unienv` skill, lists what's installed and the rules: *use the project's env inside projects, `ue-py` outside, `unienv need` for anything missing.*
+4. **Verify.** `unienv doctor` launches shells from an empty environment, imports every module and checks every agent file.
+
+Details: [How it works](docs/how-it-works.md) · [AI tool integrations](docs/agents.md) · [Troubleshooting](docs/troubleshooting.md)
+
+## ⌨️ Commands
 
 | Command | What it does |
 |---|---|
-| `unienv install` | Install batteries, wire shells and AI tools, then run `doctor` |
-| `unienv need <pkg>` | Add a Python package permanently (`--node`, `--bin` for Homebrew formulae, `--cask` for apps) |
-| `unienv doctor [--json] [--fix]` | Verify tools, shell wiring, agent files and secrets hygiene; `--json` is for agents and CI |
-| `unienv list [--json]` | Show batteries, packages and tool paths (`--json` prints `manifest.json`) |
-| `unienv sync` | Regenerate shims, `env.sh`, `manifest.json` and agent instruction blocks |
-| `unienv wire [--gui]` | Re-write the shell blocks; `--gui` (experimental, macOS) sets the launchd PATH for desktop apps |
-| `unienv uninstall [--purge]` | Remove every block UniEnv wrote; `--purge` also deletes `~/.unienv` |
+| `unienv` | Status dashboard: batteries, packages, tools, configured agents |
+| `unienv install` | Install batteries, wire shells and AI tools, run `doctor` |
+| `unienv need <pkg>` | Add a package permanently: Python (default), `--node`, `--bin` (Homebrew formula), `--cask` (app) |
+| `unienv doctor [--json] [--fix]` | Verify everything; `--json` for agents and CI |
+| `unienv list [--json]` | All batteries, packages and tool paths |
+| `unienv sync` | Regenerate shims, `env.sh`, `manifest.json` and agent blocks |
+| `unienv update` | Download the latest UniEnv and re-install |
+| `unienv wire [--gui]` | Rewrite shell blocks; `--gui` (experimental, macOS) sets the PATH desktop apps see |
+| `unienv uninstall [--purge]` | Remove everything UniEnv wrote; `--purge` also deletes `~/.unienv` |
 
 `ue` is a short alias for `unienv`.
 
-## Batteries
+## 🤖 Supported AI tools
 
-| Battery | Default | Gives agents |
-|---|---|---|
-| `core` | always | uv, Node.js, ripgrep, jq |
-| `office` | ✓ | python-docx, openpyxl, xlsxwriter, python-pptx, markitdown, docx-js, pptxgenjs, pandoc, LibreOffice (`soffice-safe`) |
-| `pdf` | ✓ | pypdf, pdfplumber, pypdfium2, reportlab, pdf2image, Poppler (`pdftotext`, `pdftoppm`), qpdf, Ghostscript |
-| `data` | ✓ | pandas, numpy, pyarrow, duckdb, matplotlib, requests, httpx, beautifulsoup4, pyyaml |
-| `ocr` | ✓ | tesseract + pytesseract (English) |
-| `media` | opt-in | ffmpeg, ImageMagick |
-| `fonts` | opt-in | Carlito, Caladea, Liberation and Noto CJK, so LibreOffice renders match Word |
+| Tool | Status |
+|---|---|
+| Claude Code | ✅ instructions + skill + shell |
+| Codex CLI | ✅ instructions + skill + shell |
+| Gemini CLI | ✅ instructions + shell |
+| OpenCode | ✅ instructions + shell |
+| Cursor, Windsurf, Cline, Roo, Copilot, Aider | ◐ shell works; paste `~/.unienv/AGENTS.md` into user rules. [Adapters wanted](https://github.com/rupeshbharambe24/unienv-ai/labels/adapter) |
+| Claude Desktop, ChatGPT desktop, LM Studio | ◐ use absolute paths from `manifest.json`; `unienv-mcp` on the [roadmap](ROADMAP.md) |
 
-Each battery is one small TOML file in [`recipes/`](recipes). Adding one is the easiest way to contribute; see [CONTRIBUTING.md](CONTRIBUTING.md).
+## ❓ FAQ
 
-## Supported AI tools
+<details>
+<summary><b>Will this mess with my projects' virtualenvs?</b></summary>
 
-| Tool | How UniEnv reaches it | Status |
-|---|---|---|
-| Claude Code | `~/.claude/CLAUDE.md` block + `~/.claude/skills/unienv/` + shell wiring | ✅ |
-| Codex CLI | `~/.codex/AGENTS.md` block + `~/.codex/skills/unienv/` + shell wiring | ✅ |
-| Gemini CLI | `~/.gemini/GEMINI.md` block + shell wiring | ✅ |
-| OpenCode | `~/.config/opencode/AGENTS.md` block + shell wiring | ✅ |
-| Cursor, Windsurf, Cline, Roo, Copilot | Shell wiring works today; paste `~/.unienv/AGENTS.md` into the tool's user rules | ◐ adapters planned |
-| Claude Desktop, ChatGPT desktop, LM Studio | Use absolute paths from `~/.unienv/manifest.json` in MCP configs | ◐ `unienv-mcp` planned |
+No. UniEnv never puts `python`, `python3` or `node` on PATH; it only adds namespaced commands (`ue-py`, `ue-node`). Agents are explicitly told to use a project's own environment (`uv run`, `.venv/bin/python`, npm) inside projects. UniEnv is for everything outside them.
+</details>
 
-Instruction blocks are only written for tools UniEnv detects (`--all-agents` writes them all). Everything UniEnv writes sits between `>>> unienv >>>` markers and is removed by `unienv uninstall`.
+<details>
+<summary><b>Why not just use Docker or a devcontainer?</b></summary>
 
-## How it works
+Your agents run on your machine, with your files. Containers are great for isolation but give up the host, and desktop apps can't easily use them. UniEnv is native-first; container export from the same recipes is on the [roadmap](ROADMAP.md).
+</details>
 
-```
-recipes/*.toml ──► unienv install ──► ~/.unienv/
-                                        bin/       ue-py, ue-node, soffice-safe, unienv, ue
-                                        py/        uv project (Python 3.12) + uv.lock + .venv
-                                        node/      npm prefix (docx, pptxgenjs, …)
-                                        env.sh     PATH for every shell mode
-                                        manifest.json   what is installed, with absolute paths
-                                        AGENTS.md  the instruction block, for tools without a global file
-              wired into ──► ~/.zshenv · ~/.profile · ~/.bashrc · BASH_ENV
-              described to ─► CLAUDE.md · AGENTS.md · GEMINI.md · skills/unienv/SKILL.md
-```
+<details>
+<summary><b>I use Microsoft Office. Do I need LibreOffice?</b></summary>
 
-- The CLI runs on a **uv-managed Python 3.12**, never Homebrew's or the OS Python, and uses only the standard library, so it keeps working even if the environment it manages breaks.
-- `unienv need` snapshots `pyproject.toml`, `uv.lock` and `package.json` first and **rolls back** if the install fails.
-- Every `need` is logged to `~/.unienv/log/unienv.log`.
+LibreOffice is for the *agent*, not for you. It lets agents convert files to PDF or images to check their own layout, recalculate formulas written by Python, and convert old `.doc`/`.xls` files. You keep using Word and Excel. Skip it with `--exclude libreoffice` if you like.
+</details>
 
-## Security notes
+<details>
+<summary><b>What exactly does it change on my system?</b></summary>
 
-- `unienv need` installs from public registries (PyPI, npm, Homebrew). Your AI tool's own permission prompt is the gate for that command. Packages outside a curated recipe are flagged in the output and the log.
-- `doctor` warns about API keys exported from shell startup files (every process an agent runs inherits them) and plaintext secrets in `claude_desktop_config.json`. It reports **variable names only, never values**.
-- UniEnv never writes credentials into any file it generates. No telemetry.
+Everything lives in `~/.unienv`, except one guarded line in your shell startup files and a marked block in each detected AI tool's instruction file. Every one of those is listed in [How it works](docs/how-it-works.md#what-unienv-writes-outside-unienv) and removed by `unienv uninstall`.
+</details>
 
-## Roadmap
+<details>
+<summary><b>Is it safe to let agents run <code>unienv need</code>?</b></summary>
 
-- **0.1 (this prototype):** macOS, batteries, shell + agent wiring, `need`, `doctor`, smoke test
-- **0.2:** apt/dnf backends, Cursor, Cline, Roo and Copilot adapters, recipe JSON Schema in CI, Homebrew tap
-- **0.3:** `unienv-mcp` (one small MCP server for desktop apps), generated sandbox profiles (Claude Code `/sandbox`, Codex, Gemini), shared Playwright browser battery
-- **1.0:** Windows (winget/Scoop) and WSL, signed recipe index, container/devcontainer export from the same lockfile, an open benchmark of local-machine environment failures
+It installs from the same public registries an agent would use anyway (PyPI, npm, Homebrew), but **once**, logged to `~/.unienv/log/unienv.log`, and flagged when the package isn't in a curated recipe. Your AI tool's permission prompt still gates the command. See [SECURITY.md](SECURITY.md).
+</details>
 
-The full research behind these choices is in [docs/research.md](docs/research.md).
+<details>
+<summary><b>Windows?</b></summary>
 
-## Contributing
+Not yet: Windows (winget/Scoop) and WSL are planned for 1.0. Help is very welcome.
+</details>
 
-New batteries, agent adapters, Linux/Windows backends and bug reports with `unienv doctor --json` output are all welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
+## 🧪 The problem, measured
+
+This project started as [research into why AI agents keep failing at environments](docs/research.md):
+
+- In **SetupBench**, even the best model wasted **69%** of its environment-setup steps and used **1.1M tokens per task**.
+- **JetBrains** found that just telling agents where the right Python is lifted task success from **68% to 98%**.
+- Across Claude Code, Codex, Gemini CLI, Cursor and Cline, the top-reported issues are the same: lost venvs, missing binaries, PATH differences between shells and GUI apps, and sandboxes blocking installs.
+
+UniEnv's bet: **agents aren't bad at environments; they're blind to them.** Make the environment persistent, shared and *described*, and the reinstall loop disappears.
+
+## 🤝 Contributing
+
+UniEnv is built to be extended by the community. The best first contributions:
+
+- 🔋 **A new battery**: one TOML file, no code ([guide](CONTRIBUTING.md#writing-a-recipe))
+- 🤖 **An adapter** for another AI tool ([guide](CONTRIBUTING.md#writing-an-agent-adapter))
+- 🐧 **Linux/Windows backends**
+- 🐛 **Bug reports** with `unienv doctor --json`
+
+Look for [`good first issue`](https://github.com/rupeshbharambe24/unienv-ai/labels/good%20first%20issue), read [CONTRIBUTING.md](CONTRIBUTING.md), and say hi in [Discussions](https://github.com/rupeshbharambe24/unienv-ai/discussions). If UniEnv saves you time, a ⭐ helps others find it.
 
 ## License
 
-Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option. Tools installed by recipes keep their own licenses (each recipe's `license_note`).
+Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option. Tools installed by recipes keep their own licenses (see each recipe's `license_note`).

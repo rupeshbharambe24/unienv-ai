@@ -1,0 +1,40 @@
+name: New battery (recipe)
+description: Propose a capability every AI tool should have ready (LaTeX, browsers, GIS, audio...)
+labels: ["battery", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A battery is one TOML file in `recipes/` that names packages; it never runs install scripts. See [CONTRIBUTING.md](https://github.com/rupeshbharambe24/unienv-ai/blob/main/CONTRIBUTING.md#writing-a-recipe). Even better than an issue: open a PR with the recipe!
+  - type: input
+    id: id
+    attributes:
+      label: Battery id
+      placeholder: latex
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What will agents be able to do?
+      placeholder: Compile LaTeX papers to PDF without installing TeX each time.
+    validations:
+      required: true
+  - type: textarea
+    id: packages
+    attributes:
+      label: Packages
+      description: Python (PyPI), Node (npm), Homebrew formulae/casks, apt packages, and approximate download size.
+      placeholder: |
+        brew: tectonic
+        apt: tectonic
+        python: pylatexenc
+        size: ~30 MB
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to open the PR for this battery myself

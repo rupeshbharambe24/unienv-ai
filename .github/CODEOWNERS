@@ -1,0 +1,3 @@
+# Default owner for everything. Recipe maintainers will be added per file
+# (e.g. /recipes/latex.toml @their-handle) as the community grows.
+*       @rupeshbharambe24

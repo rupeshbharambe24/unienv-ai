@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # UniEnv AI bootstrap.
 #
+#   curl -fsSL https://raw.githubusercontent.com/rupeshbharambe24/unienv-ai/main/install.sh | bash
 #   ./install.sh                     install default batteries and wire everything
 #   ./install.sh --dev               same, but link ~/.unienv/share to this checkout
 #   ./install.sh --no-system         skip Homebrew/apt packages
@@ -9,7 +10,8 @@
 # Everything after the bootstrap flags is passed to `unienv install`.
 set -euo pipefail
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-.}")" && pwd)"
+REF="${UNIENV_REF:-main}"
 UNIENV_HOME="${UNIENV_HOME:-$HOME/.unienv}"
 export UNIENV_HOME
 
@@ -24,6 +26,18 @@ for a in "$@"; do
 done
 
 say() { printf '\033[1;36m==>\033[0m \033[1m%s\033[0m\n' "$*"; }
+
+# 0. Run via `curl -fsSL .../install.sh | bash`? Then there is no checkout next to us:
+#    fetch the source tarball first.
+if [ ! -f "$REPO/src/unienv.py" ]; then
+  say "Downloading UniEnv AI ($REF)"
+  TMP_SRC="$(mktemp -d)"
+  trap 'rm -rf "$TMP_SRC"' EXIT
+  curl -fsSL "https://github.com/rupeshbharambe24/unienv-ai/archive/refs/heads/$REF.tar.gz" \
+    | tar -xz -C "$TMP_SRC" --strip-components=1
+  REPO="$TMP_SRC"
+  if [ "$DEV" = 1 ]; then echo "--dev needs a git checkout: git clone https://github.com/rupeshbharambe24/unienv-ai" >&2; exit 2; fi
+fi
 
 # 1. uv: manages the pinned Python for both the CLI and the shared environment
 UV="$(command -v uv || true)"
@@ -53,4 +67,4 @@ else
 fi
 
 # 4. Hand over to the CLI
-PATH="$(dirname "$UV"):$PATH" exec "$PY" "$UNIENV_HOME/share/src/unienv.py" install ${ARGS[@]+"${ARGS[@]}"}
+PATH="$(dirname "$UV"):$PATH" "$PY" "$UNIENV_HOME/share/src/unienv.py" install ${ARGS[@]+"${ARGS[@]}"}

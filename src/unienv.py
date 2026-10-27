@@ -411,7 +411,8 @@ def install_node(packages: list[str]) -> None:
         warn("npm not found; skipping Node batteries (install Node.js, then `unienv install`).")
         return
     write_package_json(packages)
-    run([npm, "install", "--no-audit", "--no-fund", "--loglevel=error"], cwd=NODE_DIR)
+    run([npm, "install", "--no-audit", "--no-fund", "--loglevel=error", "--progress=false",
+         "--no-update-notifier"], cwd=NODE_DIR)
 
 
 # ── generated files: shims, env.sh, manifest, agent files ───────────────────
@@ -615,9 +616,48 @@ def do_sync(state: dict, recipes_all: dict, *, quiet: bool = False, wire: bool =
 
 # ── commands ────────────────────────────────────────────────────────────────
 
+def _tty():
+    """(reader, writer) for the user's terminal, even when stdin is a pipe (curl | bash)."""
+    if not sys.stdout.isatty() or os.environ.get("CI"):
+        return None
+    try:  # separate handles: a text-mode "r+" open of /dev/tty is rejected as unseekable
+        return open("/dev/tty"), open("/dev/tty", "w")
+    except OSError:
+        return None
+
+
+def pick_batteries(recipes_all: dict, current: list[str]) -> list[str]:
+    """Interactive checklist shown on first install. Enter accepts; numbers toggle."""
+    tty = _tty()
+    if tty is None:
+        return current
+    tin, tout = tty
+    choices = sorted((k for k, r in recipes_all.items() if not r.get("always")),
+                     key=lambda k: (not recipes_all[k].get("default"), k))
+    selected = set(current)
+    while True:
+        tout.write("\n" + _c("1", "Choose batteries") + _c("2", "  (core is always installed)") + "\n")
+        for i, k in enumerate(choices, 1):
+            mark = _c("32", "[x]") if k in selected else "[ ]"
+            tout.write(f"  {i}. {mark} {k:<7} {recipes_all[k]['summary']}\n")
+        tout.write(_c("2", "Enter to continue, or numbers to toggle (e.g. 5 6): "))
+        tout.flush()
+        answer = tin.readline().strip()
+        if not answer:
+            tin.close()
+            tout.close()
+            return [k for k in choices if k in selected]
+        for tok in answer.replace(",", " ").split():
+            if tok.isdigit() and 1 <= int(tok) <= len(choices):
+                selected ^= {choices[int(tok) - 1]}
+
+
 def cmd_install(args) -> int:
     recipes_all = load_recipes()
+    first_run = not STATE_FILE.exists()
     state = load_state(recipes_all)
+    if first_run and not (args.batteries or args.add or args.yes):
+        state["batteries"] = pick_batteries(recipes_all, state["batteries"])
     if args.batteries:
         req = [b.strip() for b in args.batteries.split(",") if b.strip()]
         bad = [b for b in req if b not in recipes_all]
@@ -756,6 +796,61 @@ def cmd_list(args) -> int:
     return 0
 
 
+def cmd_status(args) -> int:
+    """`unienv` with no arguments: a one-screen overview."""
+    info(_c("1;36", "UniEnv AI") + f" {VERSION}  " + _c("2", "one always-ready environment for every AI tool"))
+    if not MANIFEST_FILE.exists():
+        info("\nNot installed yet. Run " + _c("1", "./install.sh") + " or " + _c("1", "unienv install") + ".")
+        return 1
+    m = json.loads(MANIFEST_FILE.read_text())
+    py = [k for k, v in m["python"]["packages"].items() if v]
+    bins = [b for b, path in m["bins"].items() if path]
+    agents = [a["name"] for a in agent_targets() if detected(a)
+              and read_block(a["instructions"], MD_BEGIN, MD_END) is not None]
+    info("")
+    info(f"  {_c('2', 'home     ')} {str(UNIENV_HOME).replace(str(HOME), '~', 1)}")
+    info(f"  {_c('2', 'batteries')} {', '.join(m['batteries'])}")
+    info(f"  {_c('2', 'python   ')} ue-py · {len(py)} packages")
+    info(f"  {_c('2', 'node     ')} ue-node · {len([v for v in m['node']['packages'].values() if v])} packages")
+    info(f"  {_c('2', 'tools    ')} {', '.join(bins)}")
+    info(f"  {_c('2', 'agents   ')} {', '.join(agents) or '(none configured)'}")
+    info("")
+    info(_c("2", "  unienv doctor      check everything      unienv need <pkg>   add a package"))
+    info(_c("2", "  unienv list        show all packages     unienv --help       all commands"))
+    return 0
+
+
+REPO_TARBALL = "https://github.com/rupeshbharambe24/unienv-ai/archive/refs/heads/{ref}.tar.gz"
+
+
+def cmd_update(args) -> int:
+    """Download the latest UniEnv, replace ~/.unienv/share, then re-run install with the new code."""
+    import tarfile
+    import tempfile
+    import urllib.request
+    share = UNIENV_HOME / "share"
+    if share.is_symlink():
+        die(f"{share} links to a development checkout; update it with `git pull` instead.")
+    url = REPO_TARBALL.format(ref=args.ref)
+    step(f"Downloading {url}")
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = Path(tmp) / "unienv.tar.gz"
+        urllib.request.urlretrieve(url, archive)
+        with tarfile.open(archive) as tar:
+            tar.extractall(tmp, filter="data")
+        src = next(Path(tmp).glob("unienv-ai-*"))
+        new_share = UNIENV_HOME / "share.new"
+        shutil.rmtree(new_share, ignore_errors=True)
+        new_share.mkdir(parents=True)
+        for part in ("src", "recipes", "templates", "shims"):
+            shutil.copytree(src / part, new_share / part)
+    shutil.rmtree(share, ignore_errors=True)
+    new_share.rename(share)
+    step("Re-installing with the new version")
+    cli = share / "src/unienv.py"
+    return subprocess.call([sys.executable, str(cli), "install"] + (["--no-wire"] if args.no_wire else []))
+
+
 # ── doctor ──────────────────────────────────────────────────────────────────
 
 def _clean_shell_probe(argv: list[str]) -> str | None:
@@ -813,7 +908,7 @@ def cmd_doctor(args) -> int:
     # Node packages
     for name, ver in node_packages(w["node"]).items():
         if ver:
-            add(f"node:{name}", "ok", f"{name} {ver}")
+            add(f"node:{name}", "ok", f"{name:<13} {ver} (node)")
         else:
             add(f"node:{name}", "fail", f"Node package {name} missing", "unienv install")
     if w["node"] and not which("node"):
@@ -823,7 +918,7 @@ def cmd_doctor(args) -> int:
     for b in w["bins"]:
         p = resolve_bin(b)
         if p:
-            add(f"bin:{b}", "ok", p)
+            add(f"bin:{b}", "ok", f"{b:<13} {p}")
         else:
             owner = next((r["id"] for r in recipes if b in r.get("verify", {}).get("bins", [])), "?")
             add(f"bin:{b}", "fail", f"{b} not found (battery: {owner})", "unienv install")
@@ -986,9 +1081,20 @@ def cmd_uninstall(args) -> int:
 # ── entry point ─────────────────────────────────────────────────────────────
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="unienv", description="UniEnv AI: one always-ready environment for every AI tool.")
+    p = argparse.ArgumentParser(
+        prog="unienv", formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="UniEnv AI: one always-ready environment for every AI tool.",
+        epilog="""examples:
+  unienv                      status overview
+  unienv doctor               check tools, shells and AI-tool wiring
+  unienv need seaborn         add a Python package for every AI tool
+  unienv need --bin ffmpeg    add a system tool (Homebrew formula / apt package)
+  unienv install --add media  enable an opt-in battery
+
+docs: https://github.com/rupeshbharambe24/unienv-ai""")
     p.add_argument("--version", action="version", version=f"unienv {VERSION}")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd")
+    p.set_defaults(fn=cmd_status)
 
     s = sub.add_parser("install", help="install batteries and wire every shell and AI tool")
     s.add_argument("--batteries", help="comma-separated list replacing the current selection")
@@ -1030,6 +1136,14 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("uninstall", help="remove all wiring; --purge also deletes ~/.unienv")
     s.add_argument("--purge", action="store_true")
     s.set_defaults(fn=cmd_uninstall)
+
+    s = sub.add_parser("status", help="one-screen overview (also what plain `unienv` shows)")
+    s.set_defaults(fn=cmd_status)
+
+    s = sub.add_parser("update", help="download the latest UniEnv and re-install with it")
+    s.add_argument("--ref", default="main", help="branch or tag to install (default: main)")
+    s.add_argument("--no-wire", action="store_true")
+    s.set_defaults(fn=cmd_update)
 
     s = sub.add_parser("path", help="print the UniEnv bin directory")
     s.set_defaults(fn=lambda a: print(BIN) or 0)

@@ -1,0 +1,57 @@
+name: Bug report
+description: Something in UniEnv doesn't work
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! The single most useful thing is the output of `unienv doctor --json`. It contains tool paths and versions, never secret values.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you run, what did you expect, and what happened instead?
+      placeholder: |
+        I asked Claude Code to convert report.docx to PDF and it ...
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Which AI tool were you using?
+      multiple: true
+      options:
+        - Claude Code
+        - Codex CLI
+        - Gemini CLI
+        - OpenCode
+        - Cursor
+        - Cline / Roo
+        - GitHub Copilot
+        - Claude Desktop / other desktop app
+        - None (plain terminal)
+        - Other
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (Debian/Ubuntu)
+        - Linux (other)
+        - Windows / WSL
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `unienv doctor --json`
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Logs from `~/.unienv/log/unienv.log`, screenshots, the agent transcript...

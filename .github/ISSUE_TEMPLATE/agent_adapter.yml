@@ -1,0 +1,32 @@
+name: Support another AI tool
+description: Teach UniEnv where another AI tool reads its global instructions or skills
+labels: ["adapter", "enhancement"]
+body:
+  - type: input
+    id: tool
+    attributes:
+      label: AI tool
+      placeholder: Windsurf
+    validations:
+      required: true
+  - type: textarea
+    id: paths
+    attributes:
+      label: Where does it read global instructions / skills / MCP config?
+      description: Please link the official documentation for each path. Unverified paths are the main way adapters break.
+      placeholder: |
+        Global rules: ~/.codeium/windsurf/memories/global_rules.md  (docs: https://...)
+        Skills: not supported
+    validations:
+      required: true
+  - type: textarea
+    id: detect
+    attributes:
+      label: How can UniEnv detect it's installed?
+      placeholder: config dir ~/.codeium/windsurf exists, or `windsurf` on PATH
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to open the PR for this adapter myself
