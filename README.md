@@ -12,7 +12,7 @@ $ ./install.sh
 ==> Wiring shells and AI tools
   agents configured: Claude Code, Codex CLI, Gemini CLI
 ==> Checking
-  ✓ 27 checks passed
+  ✓ 21 checks passed
 unienv doctor: all good
 
 $ ue need seaborn          # an agent needs something new: installed once, for every tool (~2 s)
@@ -40,6 +40,7 @@ The cost is measurable. In SetupBench, even the best model wasted **69%** of its
 | "Install it again" loops | `unienv need <pkg>` installs **permanently** for every tool, with rollback if it breaks |
 | "Is it broken or just missing?" | `unienv doctor [--json]` checks every tool, every shell mode, every agent file and secrets hygiene |
 | LibreOffice hangs, locks or silently does nothing | `soffice-safe` gives each call a throwaway profile, so it is safe in parallel and in sandboxes |
+| OCR "file not found" on macOS when `TMPDIR` is unset or under `/tmp` (Leptonica rewrites `/tmp` paths) | `env.sh` normalises `TMPDIR` to `/private/tmp`, the same directory under a name that isn't rewritten |
 | Project environments clobbered | UniEnv **never** puts its own `python`/`python3`/`node` on PATH. It uses namespaced `ue-*` commands, and agents are told to keep using a project's own env inside projects. |
 
 It is **native-first**: no Docker or VM is required, and it runs on the host where your agents already run.

@@ -315,7 +315,8 @@ def install_system(w: dict, *, assume_yes: bool) -> list[str]:
         if not brew:
             warn("Homebrew not found. Install it from https://brew.sh, then run `unienv install` again.")
             return ["homebrew"]
-        env = {"HOMEBREW_NO_ENV_HINTS": "1", "HOMEBREW_NO_AUTO_UPDATE": "1"}
+        # never let our installs trigger `brew cleanup` of the user's other caches
+        env = {"HOMEBREW_NO_ENV_HINTS": "1", "HOMEBREW_NO_AUTO_UPDATE": "1", "HOMEBREW_NO_INSTALL_CLEANUP": "1"}
         have_f = set(run([brew, "list", "--formula", "-1"], capture=True, env=env).stdout.split())
         have_c = set(run([brew, "list", "--cask", "-1"], capture=True, env=env).stdout.split())
         formulas = [f for f in w["brew"] if f.split("/")[-1] not in have_f]
@@ -460,6 +461,16 @@ def write_env_sh(state: dict) -> None:
         "export PATH",
         "# `bash -c` (non-login, non-interactive) reads only $BASH_ENV.",
         '[ -z "${BASH_ENV:-}" ] && export BASH_ENV="$UNIENV_HOME/env.sh"',
+    ]
+    if IS_MAC:
+        lines += [
+            "# Leptonica (used by tesseract) rewrites paths starting with /tmp to the per-user",
+            "# temp dir, so files written under /tmp 'vanish'. /private/tmp is the same",
+            "# directory spelled so it isn't rewritten. Agents often run with TMPDIR unset or",
+            "# under /tmp.",
+            'case "${TMPDIR:-/tmp}" in /tmp|/tmp/*) export TMPDIR="/private${TMPDIR:-/tmp}" ;; esac',
+        ]
+    lines += [
         "# Agents run non-interactive shells: never block on a pager.",
         'case $- in *i*) ;; *) export GIT_PAGER="${GIT_PAGER:-cat}" PAGER="${PAGER:-cat}" ;; esac',
         "",
