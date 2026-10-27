@@ -12,9 +12,10 @@ $ ./install.sh
 ==> Wiring shells and AI tools
   agents configured: Claude Code, Codex CLI, Gemini CLI
 ==> Checking
-  ✓ 41 checks passed
+  ✓ 27 checks passed
+unienv doctor: all good
 
-$ ue need seaborn          # an agent needs something new: installed once, for every tool
+$ ue need seaborn          # an agent needs something new: installed once, for every tool (~2 s)
 ✓ installed seaborn; available to every AI tool via ue-py
 ```
 
