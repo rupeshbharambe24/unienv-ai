@@ -18,7 +18,8 @@ jobs:
       - name: Lint
         run: |
           python3 -m py_compile src/unienv.py
-          for f in install.sh tests/smoke.sh shims/*; do sh -n "$f"; done
+          bash -n install.sh
+          for f in tests/smoke.sh shims/*; do sh -n "$f"; done
 
       - name: System packages (Linux)
         if: runner.os == 'Linux'
@@ -30,11 +31,11 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install pandoc poppler qpdf ghostscript tesseract duckdb jq ripgrep
-          ./install.sh --no-system
+          ./install.sh --no-system --exclude libreoffice
 
       - name: Install (Linux)
         if: runner.os == 'Linux'
-        run: ./install.sh --no-system
+        run: ./install.sh --no-system --exclude libreoffice
 
       - name: Doctor
         run: ~/.unienv/bin/unienv doctor --json | tee doctor.json
