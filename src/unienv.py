@@ -19,10 +19,11 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
 from pathlib import Path
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 PY_VERSION = "3.12"
 
 HOME = Path.home()
@@ -823,6 +824,91 @@ def cmd_status(args) -> int:
 REPO_TARBALL = "https://github.com/rupeshbharambe24/unienv-ai/archive/refs/heads/{ref}.tar.gz"
 
 
+# ── MCP server for desktop apps ─────────────────────────────────────────────
+
+def mcp_clients() -> dict[str, Path]:
+    """Config files of MCP clients that can't run shell commands themselves (or benefit anyway)."""
+    return {
+        "claude-desktop": (HOME / "Library/Application Support/Claude/claude_desktop_config.json") if IS_MAC
+        else (HOME / ".config/Claude/claude_desktop_config.json"),
+        "cursor": HOME / ".cursor/mcp.json",
+    }
+
+
+def mcp_entry() -> dict:
+    # absolute path: GUI apps start servers with a minimal PATH (the `spawn ENOENT` bug class)
+    return {"command": str(BIN / "unienv"), "args": ["mcp"]}
+
+
+def _load_json(path: Path) -> dict:
+    if not path.exists() or not path.read_text().strip():
+        return {}
+    try:
+        return json.loads(path.read_text())
+    except json.JSONDecodeError:
+        die(f"{path} is not valid JSON; fix it first (UniEnv won't overwrite it).")
+
+
+def cmd_mcp(args) -> int:
+    if args.action == "serve":
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import unienv_mcp
+        return unienv_mcp.serve()
+    if args.action == "config":
+        print(json.dumps({"mcpServers": {"unienv": mcp_entry()}}, indent=2))
+        return 0
+    clients = mcp_clients()
+    targets = list(clients) if args.client == "all" else [args.client]
+    for name in targets:
+        path = clients[name]
+        if args.action == "install" and name != "claude-desktop" and args.client == "all" and not path.parent.exists():
+            continue  # only touch clients that are actually installed
+        data = _load_json(path)
+        servers = data.setdefault("mcpServers", {})
+        if args.action == "install":
+            if servers.get("unienv") == mcp_entry():
+                info(f"  ✓ {name}: already configured ({path})")
+                continue
+            servers["unienv"] = mcp_entry()
+        else:
+            if "unienv" not in servers:
+                continue
+            servers.pop("unienv")
+        if path.exists():
+            backup = path.with_name(path.name + f".unienv-backup-{_dt.datetime.now():%Y%m%d-%H%M%S}")
+            shutil.copy2(path, backup)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=2) + "\n")
+        verb = "added to" if args.action == "install" else "removed from"
+        info(f"  ✓ unienv MCP server {verb} {name} ({path})")
+    if args.action == "install":
+        info("\nRestart the app (quit it fully, then reopen) to load the UniEnv tools.")
+        log_event(event="mcp-install", clients=targets)
+    return 0
+
+
+def mcp_handshake(timeout: float = 15) -> tuple[bool, str, float]:
+    """Start the MCP server exactly like a client would and complete initialize + tools/list."""
+    msgs = [
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+         "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "unienv-doctor", "version": VERSION}}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+    ]
+    start = time.monotonic()
+    try:
+        r = subprocess.run([mcp_entry()["command"], *mcp_entry()["args"]], input="\n".join(map(json.dumps, msgs)) + "\n",
+                           capture_output=True, text=True, timeout=timeout,
+                           env={"HOME": str(HOME), "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                                **({"UNIENV_HOME": os.environ["UNIENV_HOME"]} if "UNIENV_HOME" in os.environ else {})})
+        replies = [json.loads(l) for l in r.stdout.splitlines() if l.strip()]
+        tools = next((m["result"]["tools"] for m in replies if m.get("id") == 2), None)
+        ok = bool(tools) and replies[0].get("result", {}).get("serverInfo", {}).get("name") == "unienv"
+        return ok, (f"{len(tools)} tools" if tools else (r.stderr.strip()[-200:] or "no reply")), time.monotonic() - start
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError, KeyError, IndexError) as e:
+        return False, f"{type(e).__name__}: {e}", time.monotonic() - start
+
+
 def cmd_update(args) -> int:
     """Download the latest UniEnv, replace ~/.unienv/share, then re-run install with the new code."""
     import tarfile
@@ -978,6 +1064,19 @@ def cmd_doctor(args) -> int:
         if r.stdout.strip() == "True":
             add("pep668", "info", f"{bp}/bin/python3 is externally managed (PEP 668); "
                 "agents are told to use ue-py / `unienv need` instead of pip")
+
+    # MCP server for desktop apps: configured clients must point at a server that answers
+    configured = [n for n, p in mcp_clients().items()
+                  if p.exists() and "unienv" in (_load_json(p).get("mcpServers") or {})]
+    if configured:
+        ok, detail, secs = mcp_handshake()
+        if ok:
+            add("mcp", "ok", f"MCP server answers in {secs:.1f}s ({detail}); configured for {', '.join(configured)}")
+        else:
+            add("mcp", "fail", f"MCP server configured for {', '.join(configured)} but the handshake failed: {detail}",
+                "unienv mcp install --client all   # rewrites the entry with absolute paths")
+    elif IS_MAC and mcp_clients()["claude-desktop"].parent.exists():
+        add("mcp", "info", "Claude Desktop chat can't use UniEnv yet", "unienv mcp install")
 
     # Aliases that hang or prompt in agent shells. Claude Code replays your aliases into
     # every command; eza >= 0.23 waits on an open stdin, `-i` flags wait for a "y".
@@ -1166,6 +1265,12 @@ docs: https://github.com/rupeshbharambe24/unienv-ai""")
     s.add_argument("--ref", default="main", help="branch or tag to install (default: main)")
     s.add_argument("--no-wire", action="store_true")
     s.set_defaults(fn=cmd_update)
+
+    s = sub.add_parser("mcp", help="MCP server for desktop apps: serve (default), install, uninstall, config")
+    s.add_argument("action", nargs="?", default="serve", choices=["serve", "install", "uninstall", "config"])
+    s.add_argument("--client", default="claude-desktop", choices=["claude-desktop", "cursor", "all"],
+                   help="which app to configure (default: claude-desktop)")
+    s.set_defaults(fn=cmd_mcp)
 
     s = sub.add_parser("path", help="print the UniEnv bin directory")
     s.set_defaults(fn=lambda a: print(BIN) or 0)

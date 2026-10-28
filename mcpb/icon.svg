@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1020"/><stop offset="1" stop-color="#0f2a33"/></linearGradient>
+    <linearGradient id="m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#818cf8"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g transform="translate(256 256)">
+    <g stroke="#6cc7e8" stroke-width="10" stroke-linecap="round">
+      <line x1="0" y1="0" x2="0" y2="-170"/><line x1="0" y1="0" x2="147" y2="-85"/><line x1="0" y1="0" x2="147" y2="85"/>
+      <line x1="0" y1="0" x2="0" y2="170"/><line x1="0" y1="0" x2="-147" y2="85"/><line x1="0" y1="0" x2="-147" y2="-85"/>
+    </g>
+    <g fill="#0b1020" stroke="url(#m)" stroke-width="10">
+      <circle cx="0" cy="-170" r="24"/><circle cx="147" cy="-85" r="24"/><circle cx="147" cy="85" r="24"/>
+      <circle cx="0" cy="170" r="24"/><circle cx="-147" cy="85" r="24"/><circle cx="-147" cy="-85" r="24"/>
+    </g>
+    <rect x="-86" y="-86" width="172" height="172" rx="42" fill="url(#m)"/>
+    <text x="0" y="28" text-anchor="middle" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="82" font-weight="700" fill="#0b1020">ue</text>
+  </g>
+</svg>

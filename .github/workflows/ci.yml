@@ -43,6 +43,14 @@ jobs:
       - name: Smoke test from a fresh non-interactive shell
         run: env -i HOME="$HOME" USER="$USER" PATH=/usr/bin:/bin bash -lc tests/smoke.sh
 
+      - name: MCP server end-to-end
+        run: python3 tests/mcp_test.py
+
+      - name: Build and validate the Claude Desktop Extension
+        run: |
+          scripts/build-mcpb.sh
+          npx -y @anthropic-ai/mcpb validate mcpb/manifest.json
+
       - name: need + rollback
         run: |
           ~/.unienv/bin/unienv need tomli-w

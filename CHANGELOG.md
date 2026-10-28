@@ -4,7 +4,14 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-28
+
 ### Added
+- **UniEnv MCP server** (`unienv mcp`): Claude Desktop chat and other MCP apps can now read, create and convert documents and run Python with the shared environment. Six tools with safety annotations; standard library only; stdio; MCP 2024-11-05 → 2025-11-25.
+- `unienv mcp install|uninstall|config` for Claude Desktop and Cursor (merges with a backup, absolute paths).
+- **Claude Desktop Extension** (`unienv.mcpb`), built and validated in CI and attached to releases.
+- `doctor` performs a real MCP handshake against configured apps.
+- `tests/mcp_test.py`: end-to-end MCP test in CI.
 - `bench/word-task.sh`: reproducible before/after benchmark with Claude Code. First results: ~2.3× faster on a Word task, 2 turns instead of 4–5, zero installs during the task.
 - `doctor` warns about agent-hostile shell aliases (`ls`→eza, `cat`→bat, `rm -i`…) that hang or prompt inside agent shells.
 
@@ -31,5 +38,6 @@ First public prototype.
 - Login bash on Linux skipped `~/.profile` when `~/.bash_profile` exists; both are now wired.
 - Homebrew's automatic `brew cleanup` no longer runs as a side effect of UniEnv installs.
 
-[Unreleased]: https://github.com/rupeshbharambe24/unienv-ai/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/rupeshbharambe24/unienv-ai/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.2.0
 [0.1.0]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.1.0

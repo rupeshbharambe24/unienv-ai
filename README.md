@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <b>Works with</b> Claude Code · Codex CLI · Gemini CLI · OpenCode · any agent that runs shell commands
+  <b>Works with</b> Claude Code · Codex CLI · Gemini CLI · OpenCode · <b>Claude Desktop (MCP)</b> · any agent that runs shell commands
 </p>
 
 <p align="center">
@@ -63,7 +63,7 @@ Word, Excel, PowerPoint, PDF, OCR and data tools, ready on day one: python-docx,
 <td width="50%" valign="top">
 
 **🤝 Every AI tool, one environment**<br>
-Claude Code, Codex, Gemini CLI and OpenCode each get a managed instruction block and a skill that says exactly what's installed and how to call it.
+Claude Code, Codex, Gemini CLI and OpenCode get a managed instruction block and skill; **Claude Desktop chat** and other MCP apps get the same tools through the built-in **MCP server**.
 
 </td>
 </tr>
@@ -183,6 +183,7 @@ Details: [How it works](docs/how-it-works.md) · [AI tool integrations](docs/ai-
 | `unienv sync` | Regenerate shims, `env.sh`, `manifest.json` and agent blocks |
 | `unienv update` | Download the latest UniEnv and re-install |
 | `unienv wire [--gui]` | Rewrite shell blocks; `--gui` (experimental, macOS) sets the PATH desktop apps see |
+| `unienv mcp install [--client …]` | Connect Claude Desktop / Cursor / other MCP apps ([guide](docs/mcp.md)) |
 | `unienv uninstall [--purge]` | Remove everything UniEnv wrote; `--purge` also deletes `~/.unienv` |
 
 `ue` is a short alias for `unienv`.
@@ -196,7 +197,9 @@ Details: [How it works](docs/how-it-works.md) · [AI tool integrations](docs/ai-
 | Gemini CLI | ✅ instructions + shell |
 | OpenCode | ✅ instructions + shell |
 | Cursor, Windsurf, Cline, Roo, Copilot, Aider | ◐ shell works; paste `~/.unienv/AGENTS.md` into user rules. [Adapters wanted](https://github.com/rupeshbharambe24/unienv-ai/labels/adapter) |
-| Claude Desktop, ChatGPT desktop, LM Studio | ◐ use absolute paths from `manifest.json`; `unienv-mcp` on the [roadmap](ROADMAP.md) |
+| **Claude Desktop chat** | ✅ via the UniEnv MCP server: `unienv mcp install` or the one-click `.mcpb` extension ([guide](docs/mcp.md)) |
+| LM Studio & other MCP apps | ✅ via MCP: `unienv mcp config` prints the snippet |
+| Claude.ai / ChatGPT on the web, Cowork | ❌ they run in the cloud or a VM and can't reach your computer |
 
 ## ❓ FAQ
 
