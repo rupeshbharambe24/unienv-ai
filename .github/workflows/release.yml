@@ -1,0 +1,22 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  mcpb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build the Claude Desktop Extension
+        run: |
+          scripts/build-mcpb.sh
+          npx -y @anthropic-ai/mcpb validate mcpb/manifest.json
+      - name: Attach unienv.mcpb to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/unienv.mcpb --clobber || gh release create "$GITHUB_REF_NAME" dist/unienv.mcpb --generate-notes

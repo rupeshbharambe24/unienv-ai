@@ -25,7 +25,7 @@
 
   <!-- mark: many agents (outer nodes) sharing one environment (core) -->
   <g transform="translate(232 180)">
-    <g stroke="url(#mark)" stroke-width="3" stroke-linecap="round" opacity="0.85">
+    <g stroke="#6cc7e8" stroke-width="3" stroke-linecap="round" opacity="0.85">
       <line x1="0" y1="0" x2="0" y2="-104"/>
       <line x1="0" y1="0" x2="90" y2="-52"/>
       <line x1="0" y1="0" x2="90" y2="52"/>

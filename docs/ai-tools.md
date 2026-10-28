@@ -13,7 +13,8 @@ UniEnv reaches AI tools in two ways:
 | **OpenCode** | `~/.config/opencode/AGENTS.md` | none | `~/.config/opencode/` or `opencode` |
 | **Cursor** | paste `~/.unienv/AGENTS.md` into *Settings → Rules → User Rules* | none | manual for now |
 | **Windsurf, Cline, Roo, Copilot, Aider** | paste `~/.unienv/AGENTS.md` into the tool's global rules | none | adapters planned, help wanted |
-| **Claude Desktop, ChatGPT desktop, LM Studio** | none; use absolute paths from `~/.unienv/manifest.json` in MCP server configs | none | `unienv-mcp` planned |
+| **Claude Desktop chat** | **UniEnv MCP server**: `unienv mcp install` or the `.mcpb` extension ([guide](mcp.md)) | n/a | config file |
+| **LM Studio, other MCP apps** | MCP server via `unienv mcp config` | n/a | manual |
 
 Run `unienv sync --all-agents` to write instruction files even for tools that aren't installed yet.
 

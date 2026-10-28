@@ -1,0 +1,53 @@
+{
+  "manifest_version": "0.3",
+  "name": "unienv",
+  "display_name": "UniEnv AI",
+  "version": "0.2.0",
+  "description": "Use your computer's always-ready document, PDF, OCR and data tools from Claude: read, create and convert Word, Excel, PowerPoint and PDF files locally.",
+  "long_description": "UniEnv AI gives every AI tool on your computer one shared, pre-installed environment (python-docx, openpyxl, python-pptx, pandas, pypdf, pandoc, LibreOffice, Poppler, tesseract and more). This extension connects Claude Desktop to it, so chat can read local documents, create and edit Office files, convert formats and run Python with those packages, without installing anything per task. Requires UniEnv to be installed: https://github.com/rupeshbharambe24/unienv-ai",
+  "author": {
+    "name": "Rupesh Bharambe",
+    "url": "https://github.com/rupeshbharambe24"
+  },
+  "homepage": "https://github.com/rupeshbharambe24/unienv-ai",
+  "documentation": "https://github.com/rupeshbharambe24/unienv-ai/blob/main/docs/mcp.md",
+  "support": "https://github.com/rupeshbharambe24/unienv-ai/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rupeshbharambe24/unienv-ai"
+  },
+  "license": "MIT OR Apache-2.0",
+  "icon": "icon.png",
+  "keywords": ["documents", "docx", "xlsx", "pptx", "pdf", "ocr", "python", "local"],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/unienv-mcp.sh",
+    "mcp_config": {
+      "command": "${__dirname}/server/unienv-mcp.sh",
+      "args": [],
+      "env": {
+        "UNIENV_WORKDIR": "${user_config.workdir}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "unienv_capabilities", "description": "List the pre-installed tools and packages, with usage notes" },
+    { "name": "read_document", "description": "Read Word, Excel, PowerPoint, PDF, HTML or image (OCR) files as text" },
+    { "name": "convert_document", "description": "Convert documents, e.g. docx → pdf, md → docx, pdf → txt/png" },
+    { "name": "run_python", "description": "Run Python with python-docx, openpyxl, python-pptx, pandas, matplotlib and more" },
+    { "name": "run_tool", "description": "Run pandoc, LibreOffice, Poppler, qpdf, tesseract and other UniEnv tools" },
+    { "name": "install_package", "description": "Permanently add a missing package for every AI tool" }
+  ],
+  "user_config": {
+    "workdir": {
+      "type": "directory",
+      "title": "Output folder",
+      "description": "Where new files go when Claude doesn't give a path.",
+      "required": false,
+      "default": "${HOME}/UniEnv"
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "linux"]
+  }
+}

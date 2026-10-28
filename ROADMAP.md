@@ -12,8 +12,8 @@ Items marked 🙋 are great first contributions. Comment on the linked issue to 
 - [ ] Batteries: `latex`, `browser` (one shared Playwright Chromium), `diagrams` (graphviz, mermaid-cli) 🙋
 
 ## 0.3: desktop apps and sandboxes
-- [ ] `unienv-mcp`: one small MCP server so desktop apps (Claude Desktop, ChatGPT desktop, LM Studio) can use the same tools
-- [ ] MCP wiring with absolute paths and pre-installed servers (no `npx -y` cold starts)
+- [x] `unienv mcp`: MCP server so desktop apps (Claude Desktop, LM Studio, …) can use the same tools, plus a Claude Desktop Extension (`.mcpb`)
+- [x] MCP wiring with absolute paths (no `npx -y` cold starts), doctor handshake check
 - [ ] Generated sandbox profiles for Claude Code `/sandbox`, Codex `workspace-write` and Gemini Seatbelt, so sandboxes allow UniEnv instead of agents escalating to full access
 - [ ] Shared caches: one `HF_HOME`, one Playwright browser install
 
