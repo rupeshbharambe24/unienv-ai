@@ -979,6 +979,28 @@ def cmd_doctor(args) -> int:
             add("pep668", "info", f"{bp}/bin/python3 is externally managed (PEP 668); "
                 "agents are told to use ue-py / `unienv need` instead of pip")
 
+    # Aliases that hang or prompt in agent shells. Claude Code replays your aliases into
+    # every command; eza >= 0.23 waits on an open stdin, `-i` flags wait for a "y".
+    hostile = {
+        r"eza|exa": "reads file names from stdin when it isn't a terminal, so agent commands hang until timeout",
+        r"lsd|bat|batcat|less|more": "pages or decorates output meant for programs",
+        r"(rm|cp|mv)\b.*\s-i\b|(rm|cp|mv)\s+-\w*i": "asks for confirmation, which an agent can never answer",
+    }
+    alias_re = re.compile(r"""^\s*alias\s+(ls|ll|la|cat|grep|find|rm|cp|mv|cd|less)=['"]?([^'"\n]+)""", re.M)
+    for rc in (".zshrc", ".bashrc", ".bash_aliases", ".zshenv", ".zprofile", ".profile"):
+        p = HOME / rc
+        if not p.exists():
+            continue
+        text = p.read_text(errors="ignore")
+        guarded = "CLAUDECODE" in text or "AI_AGENT" in text
+        for name, target in alias_re.findall(text):
+            why = next((w for pat, w in hostile.items()
+                        if re.match(rf"\s*({pat})\b", target) or (name in ("rm", "cp", "mv") and re.search(pat, f"{name} {target}"))), None)
+            if why and not guarded:
+                add(f"alias:{rc}:{name}", "warn",
+                    f"~/{rc}: alias {name}='{target.strip()}' {why}",
+                    'wrap interactive-only aliases: if [ -z "${AI_AGENT:-}${CLAUDECODE:-}" ]; then ... fi')
+
     # Secrets hygiene: report variable names only, never values
     pat = re.compile(r"^\s*export\s+([A-Z0-9_]*(?:API_KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*)=", re.M)
     for rc in (".zshrc", ".zshenv", ".zprofile", ".bashrc", ".bash_profile", ".profile"):

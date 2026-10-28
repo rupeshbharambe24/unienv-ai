@@ -4,6 +4,10 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+- `bench/word-task.sh`: reproducible before/after benchmark with Claude Code. First results: ~2.3× faster on a Word task, 2 turns instead of 4–5, zero installs during the task.
+- `doctor` warns about agent-hostile shell aliases (`ls`→eza, `cat`→bat, `rm -i`…) that hang or prompt inside agent shells.
+
 ## [0.1.0] - 2026-10-28
 
 First public prototype.

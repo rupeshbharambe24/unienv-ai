@@ -20,6 +20,17 @@ unienv doctor --json   # attach this to bug reports
 - Inside a project with its own `pyproject.toml` or `.venv`, using the project's env is correct behaviour.
 - Agents sometimes ignore instructions. Asking "use ue-py" once in the conversation usually sticks. Please open an issue with the transcript; it helps us improve the instruction text.
 
+## Agent commands hang for ~2 minutes (often starting with `ls`)
+
+Claude Code replays your shell aliases into agent commands. If `ls` is aliased to **eza** (0.23+), eza waits for file names on stdin, which is never closed in agent shells, so the command blocks until the tool times out. `bat` (as `cat`) and `rm -i`/`cp -i`/`mv -i` cause similar trouble. `unienv doctor` warns about these. Keep them for your own terminal only:
+
+```sh
+# ~/.zshrc
+if [ -z "${AI_AGENT:-}${CLAUDECODE:-}" ]; then
+  alias ls='eza --icons=always --group-directories-first --git'
+fi
+```
+
 ## `unienv need` is slow or fails
 
 - `need` re-resolves the shared env with uv. With a warm cache it takes about 2 seconds, but on a slow network it waits for PyPI. Set `UV_HTTP_TIMEOUT=120` if your connection is flaky.

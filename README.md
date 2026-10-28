@@ -236,7 +236,18 @@ It installs from the same public registries an agent would use anyway (PyPI, npm
 Not yet: Windows (winget/Scoop) and WSL are planned for 1.0. Help is very welcome.
 </details>
 
-## 🧪 The problem, measured
+## 🧪 Measured
+
+**Our benchmark** ([details](bench/README.md)): Claude Code, *"put this text into a Word document"*, same machine, before vs after UniEnv:
+
+| | Without UniEnv | With UniEnv |
+|---|---|---|
+| Typical time | ~22 s | **~9.6 s (2.3× faster)** |
+| Agent turns | 4–5 | **2** |
+| Packages installed during the task | every run (temp venv / npm) | **none** |
+| Correct document | 3/3 | 3/3 |
+
+*n = 3 per group on one Mac. Small, but reproducible with [`bench/word-task.sh`](bench/word-task.sh). PRs with your own results are welcome.*
 
 This project started as [research into why AI agents keep failing at environments](docs/research.md):
 
