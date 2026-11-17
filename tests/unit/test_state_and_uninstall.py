@@ -1,4 +1,5 @@
 """Regression tests for #13 (uninstall leaves MCP entries) and #21 (parallel `need`, corrupt state)."""
+
 import argparse
 import contextlib
 import importlib.util
@@ -73,18 +74,27 @@ class StateTests(unittest.TestCase):
     def test_state_lock_serialises_processes(self):
         with tempfile.TemporaryDirectory() as tmp:
             holder = subprocess.Popen(
-                [sys.executable, "-c",
-                 "import importlib.util, sys, time\n"
-                 f"spec = importlib.util.spec_from_file_location('unienv', {str(ROOT / 'src' / 'unienv.py')!r})\n"
-                 "u = importlib.util.module_from_spec(spec); spec.loader.exec_module(u)\n"
-                 "with u.state_lock():\n"
-                 "    print('locked', flush=True); time.sleep(1.5)\n"],
-                env={**os.environ, "UNIENV_HOME": tmp}, stdout=subprocess.PIPE, text=True)
+                [
+                    sys.executable,
+                    "-c",
+                    "import importlib.util, sys, time\n"
+                    f"spec = importlib.util.spec_from_file_location('unienv', {str(ROOT / 'src' / 'unienv.py')!r})\n"
+                    "u = importlib.util.module_from_spec(spec); spec.loader.exec_module(u)\n"
+                    "with u.state_lock():\n"
+                    "    print('locked', flush=True); time.sleep(1.5)\n",
+                ],
+                env={**os.environ, "UNIENV_HOME": tmp},
+                stdout=subprocess.PIPE,
+                text=True,
+            )
             try:
                 self.assertEqual(holder.stdout.readline().strip(), "locked")
                 start = time.monotonic()
-                with patch.object(u, "UNIENV_HOME", pathlib.Path(tmp)), \
-                        contextlib.redirect_stderr(io.StringIO()) as err, u.state_lock():
+                with (
+                    patch.object(u, "UNIENV_HOME", pathlib.Path(tmp)),
+                    contextlib.redirect_stderr(io.StringIO()) as err,
+                    u.state_lock(),
+                ):
                     waited = time.monotonic() - start
                 self.assertGreater(waited, 0.5)
                 self.assertIn("waiting for another unienv command", err.getvalue())

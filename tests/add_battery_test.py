@@ -8,6 +8,7 @@ untouched. Exit code = number of failures.
 
     python3 tests/add_battery_test.py
 """
+
 import argparse
 import importlib.util
 import io
@@ -34,8 +35,16 @@ def check(label, cond):
 
 
 def load_module():
-    for key in ("HOME", "UNIENV_HOME", "STATE_FILE", "RECIPES_DIR",
-                "MANIFEST_FILE", "ENV_SH", "LOG_FILE", "BACKUP_DIR"):
+    for key in (
+        "HOME",
+        "UNIENV_HOME",
+        "STATE_FILE",
+        "RECIPES_DIR",
+        "MANIFEST_FILE",
+        "ENV_SH",
+        "LOG_FILE",
+        "BACKUP_DIR",
+    ):
         os.environ.pop(key, None)
     os.environ["HOME"] = str(HOME)
     os.environ["UNIENV_HOME"] = str(UE_HOME)
@@ -65,8 +74,13 @@ original_state = {"version": ue.VERSION, "batteries": ["media"], "extras": {}, "
 state_file.write_text(json.dumps(original_state))
 
 args = argparse.Namespace(
-    batteries=None, add="medai", exclude=None, yes=True,
-    no_system=True, no_wire=True, all_agents=False,
+    batteries=None,
+    add="medai",
+    exclude=None,
+    yes=True,
+    no_system=True,
+    no_wire=True,
+    all_agents=False,
 )
 
 err = io.StringIO()

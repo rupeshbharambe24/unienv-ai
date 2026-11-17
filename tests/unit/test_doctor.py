@@ -1,4 +1,5 @@
 """Offline doctor checks; never change the caller's installed environment."""
+
 import argparse
 import contextlib
 import importlib.util
@@ -23,13 +24,26 @@ class DoctorFixTests(unittest.TestCase):
                 manifest.write_text("{}")
             if warning:
                 (root / ".bashrc").write_text("export EXAMPLE_API_KEY=synthetic-test-value\n")
-            for name, value in {"HOME": root, "UNIENV_HOME": root, "PY_DIR": root / "py",
-                                "MANIFEST_FILE": manifest, "IS_MAC": False}.items():
+            for name, value in {
+                "HOME": root,
+                "UNIENV_HOME": root,
+                "PY_DIR": root / "py",
+                "MANIFEST_FILE": manifest,
+                "IS_MAC": False,
+            }.items():
                 stack.enter_context(patch.object(unienv, name, value))
-            for name, value in {"load_recipes": {}, "load_state": {"options": {"exclude": []}},
-                                "active_recipes": [], "wanted": {"node": [], "bins": [], "skipped_bins": []},
-                                "node_packages": {}, "agent_targets": [], "mcp_clients": {},
-                                "brew_prefix": None, "render_agent_block": "", "_clean_shell_probe": str(unienv.BIN / "ue-py")}.items():
+            for name, value in {
+                "load_recipes": {},
+                "load_state": {"options": {"exclude": []}},
+                "active_recipes": [],
+                "wanted": {"node": [], "bins": [], "skipped_bins": []},
+                "node_packages": {},
+                "agent_targets": [],
+                "mcp_clients": {},
+                "brew_prefix": None,
+                "render_agent_block": "",
+                "_clean_shell_probe": str(unienv.BIN / "ue-py"),
+            }.items():
                 stack.enter_context(patch.object(unienv, name, return_value=value))
             sync = stack.enter_context(patch.object(unienv, "do_sync"))
             sync.side_effect = lambda *a, **kw: manifest.write_text("{}")

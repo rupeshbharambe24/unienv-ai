@@ -12,6 +12,7 @@ stdout carries protocol messages only.
 
     unienv mcp            # normally launched by the MCP client, not by hand
 """
+
 from __future__ import annotations
 
 import json
@@ -36,14 +37,22 @@ MANIFEST_FILE = UNIENV_HOME / "manifest.json"
 RECIPES_DIR = Path(__file__).resolve().parent.parent / "recipes"
 WORKDIR = Path(os.environ.get("UNIENV_WORKDIR", HOME / "UniEnv")).expanduser()
 
-MAX_OUTPUT = 20_000          # characters of tool output returned to the model
+MAX_OUTPUT = 20_000  # characters of tool output returned to the model
 DEFAULT_TIMEOUT = 120
 MAX_TIMEOUT = 900
 
 OFFICE_EXT = {".docx", ".doc", ".odt", ".rtf", ".xlsx", ".xls", ".ods", ".pptx", ".ppt", ".odp"}
 PANDOC_IN = {".md", ".markdown", ".html", ".htm", ".txt", ".rst", ".tex", ".epub", ".docx", ".odt"}
-PANDOC_OUT = {"md": "markdown", "markdown": "markdown", "html": "html", "docx": "docx", "odt": "odt",
-              "txt": "plain", "rst": "rst", "epub": "epub"}
+PANDOC_OUT = {
+    "md": "markdown",
+    "markdown": "markdown",
+    "html": "html",
+    "docx": "docx",
+    "odt": "odt",
+    "txt": "plain",
+    "rst": "rst",
+    "epub": "epub",
+}
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".gif", ".webp"}
 
 
@@ -52,6 +61,7 @@ def log(msg: str) -> None:
 
 
 # ── environment ─────────────────────────────────────────────────────────────
+
 
 def tool_env() -> dict[str, str]:
     """Environment for child processes: UniEnv + Homebrew + system PATH.
@@ -65,8 +75,9 @@ def tool_env() -> dict[str, str]:
             path.append(p)
     path += ["/usr/bin", "/bin", "/usr/sbin", "/sbin"]
     env = {k: v for k, v in os.environ.items() if k in ("HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "SHELL")}
-    env.update({"PATH": os.pathsep.join(path), "UNIENV_HOME": str(UNIENV_HOME),
-                "PYTHONUNBUFFERED": "1", "MPLBACKEND": "Agg"})
+    env.update(
+        {"PATH": os.pathsep.join(path), "UNIENV_HOME": str(UNIENV_HOME), "PYTHONUNBUFFERED": "1", "MPLBACKEND": "Agg"}
+    )
     tmp = os.environ.get("TMPDIR", "/tmp")
     if sys.platform == "darwin" and (tmp == "/tmp" or tmp.startswith("/tmp/")):
         tmp = "/private" + tmp  # Leptonica rewrites /tmp paths (see env.sh)
@@ -101,8 +112,16 @@ def run(cmd: list[str], *, cwd: Path, timeout: int) -> tuple[int, str, str, floa
     timeout = max(1, min(int(timeout or DEFAULT_TIMEOUT), MAX_TIMEOUT))
     start = time.monotonic()
     try:
-        r = subprocess.run(cmd, cwd=cwd, env=tool_env(), stdin=subprocess.DEVNULL,
-                           capture_output=True, text=True, errors="replace", timeout=timeout)
+        r = subprocess.run(
+            cmd,
+            cwd=cwd,
+            env=tool_env(),
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=timeout,
+        )
         code, out, err = r.returncode, r.stdout, r.stderr
     except subprocess.TimeoutExpired as e:
         partial = e.stdout.decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
@@ -147,6 +166,7 @@ class ToolError(Exception):
 
 # ── tools ───────────────────────────────────────────────────────────────────
 
+
 def t_capabilities(_: dict) -> str:
     m = manifest()
     if not m:
@@ -162,17 +182,19 @@ def t_capabilities(_: dict) -> str:
             continue
         if r.get("id") in m.get("batteries", []) and r.get("agent", {}).get("notes"):
             notes.append(f"[{r['id']}] {r['summary']}\n{r['agent']['notes'].strip()}")
-    return "\n".join([
-        f"UniEnv {m.get('unienv', '?')} on {m.get('platform', '?')}",
-        f"Working folder (default cwd, outputs land here): {WORKDIR}",
-        f"Batteries: {', '.join(m.get('batteries', []))}",
-        f"Python {m.get('python', {}).get('version', '')} packages (use run_python): {', '.join(py)}",
-        f"Node packages (run_tool with tool='ue-node'): {', '.join(node) or '(none)'}",
-        f"Tools (use run_tool): {', '.join(tools)}",
-        "",
-        "Usage notes (shell commands map to run_tool / run_python):",
-        "\n\n".join(notes),
-    ])
+    return "\n".join(
+        [
+            f"UniEnv {m.get('unienv', '?')} on {m.get('platform', '?')}",
+            f"Working folder (default cwd, outputs land here): {WORKDIR}",
+            f"Batteries: {', '.join(m.get('batteries', []))}",
+            f"Python {m.get('python', {}).get('version', '')} packages (use run_python): {', '.join(py)}",
+            f"Node packages (run_tool with tool='ue-node'): {', '.join(node) or '(none)'}",
+            f"Tools (use run_tool): {', '.join(tools)}",
+            "",
+            "Usage notes (shell commands map to run_tool / run_python):",
+            "\n\n".join(notes),
+        ]
+    )
 
 
 def t_read_document(a: dict) -> str:
@@ -215,8 +237,9 @@ def t_convert_document(a: dict) -> str:
 
     def via_soffice(input_path: Path, target_fmt: str) -> Path:
         with tempfile.TemporaryDirectory(dir=tool_env()["TMPDIR"]) as tmp:
-            code, out, err, _ = run([str(soffice), "--convert-to", target_fmt, "--outdir", tmp, str(input_path)],
-                                    cwd=Path(tmp), timeout=300)
+            code, out, err, _ = run(
+                [str(soffice), "--convert-to", target_fmt, "--outdir", tmp, str(input_path)], cwd=Path(tmp), timeout=300
+            )
             produced = list(Path(tmp).glob(f"*.{target_fmt.split(':')[0]}"))
             if code != 0 or not produced:
                 raise ToolError(f"LibreOffice conversion failed: {(err or out).strip()[:800] or 'no output'}")
@@ -224,7 +247,9 @@ def t_convert_document(a: dict) -> str:
         return dest
 
     def via_pandoc(input_path: Path, to: str, target: Path) -> Path:
-        code, out, err, _ = run(["pandoc", str(input_path), "-t", to, "-o", str(target)], cwd=input_path.parent, timeout=180)
+        code, out, err, _ = run(
+            ["pandoc", str(input_path), "-t", to, "-o", str(target)], cwd=input_path.parent, timeout=180
+        )
         if code != 0:
             raise ToolError(f"pandoc failed: {err.strip()[:800]}")
         return target
@@ -240,8 +265,18 @@ def t_convert_document(a: dict) -> str:
             # render into a scratch folder, then move the pages into a fresh <stem>-pages folder,
             # so earlier renders are never overwritten and only this call's pages are listed
             with tempfile.TemporaryDirectory(dir=tool_env()["TMPDIR"]) as tmp:
-                code, _, err, _ = run(["pdftoppm", f"-{'png' if fmt == 'png' else 'jpeg'}", "-r", "110",
-                                       str(src), str(Path(tmp) / src.stem)], cwd=src.parent, timeout=300)
+                code, _, err, _ = run(
+                    [
+                        "pdftoppm",
+                        f"-{'png' if fmt == 'png' else 'jpeg'}",
+                        "-r",
+                        "110",
+                        str(src),
+                        str(Path(tmp) / src.stem),
+                    ],
+                    cwd=src.parent,
+                    timeout=300,
+                )
                 if code != 0:
                     raise ToolError(f"pdftoppm failed: {err.strip()[:500]}")
                 pages_dir = free_name(out_dir / f"{src.stem}-pages")
@@ -257,20 +292,24 @@ def t_convert_document(a: dict) -> str:
             with tempfile.TemporaryDirectory(dir=tool_env()["TMPDIR"]) as tmp:
                 mid = via_pandoc(src, "docx", Path(tmp) / f"{src.stem}.docx")
                 return f"Converted to {via_soffice(mid, 'pdf')}"
-    if ext in OFFICE_EXT and fmt in {"docx", "xlsx", "pptx", "odt", "ods", "odp", "csv", "html"} and \
-            not (ext == ".docx" and fmt in PANDOC_OUT):
+    if (
+        ext in OFFICE_EXT
+        and fmt in {"docx", "xlsx", "pptx", "odt", "ods", "odp", "csv", "html"}
+        and not (ext == ".docx" and fmt in PANDOC_OUT)
+    ):
         return f"Converted to {via_soffice(src, fmt)}"
     if ext in PANDOC_IN and fmt in PANDOC_OUT:
         return f"Converted to {via_pandoc(src, PANDOC_OUT[fmt], dest)}"
-    raise ToolError(f"don't know how to convert {ext or 'this file'} to {fmt}. "
-                    "Try run_python (python-docx/openpyxl/pandas) or run_tool with pandoc/soffice-safe.")
+    raise ToolError(
+        f"don't know how to convert {ext or 'this file'} to {fmt}. "
+        "Try run_python (python-docx/openpyxl/pandas) or run_tool with pandoc/soffice-safe."
+    )
 
 
 def t_run_python(a: dict) -> str:
     cwd = workdir(a.get("cwd"))
     before = snapshot(cwd)
-    with tempfile.NamedTemporaryFile("w", suffix=".py", prefix="unienv_", dir=tool_env()["TMPDIR"],
-                                     delete=False) as f:
+    with tempfile.NamedTemporaryFile("w", suffix=".py", prefix="unienv_", dir=tool_env()["TMPDIR"], delete=False) as f:
         f.write(a["code"])
         script = f.name
     try:
@@ -291,8 +330,10 @@ def t_run_tool(a: dict) -> str:
     tools = allowed_tools()
     name = a["tool"]
     if name not in tools:
-        raise ToolError(f"'{name}' is not a UniEnv tool. Available: {', '.join(sorted(tools))}. "
-                        "For anything else use run_python, or install_package to add a tool.")
+        raise ToolError(
+            f"'{name}' is not a UniEnv tool. Available: {', '.join(sorted(tools))}. "
+            "For anything else use run_python, or install_package to add a tool."
+        )
     args = a.get("args") or []
     if not isinstance(args, list) or not all(isinstance(x, str) for x in args):
         raise ToolError("args must be a list of strings (no shell; one argument per item)")
@@ -339,7 +380,7 @@ TOOLS = [
         "name": "unienv_capabilities",
         "title": "What's installed",
         "description": "List the document, PDF, OCR, data and media tools and Python/Node packages that are "
-                       "pre-installed on this computer, with usage notes. Call this first when unsure what is available.",
+        "pre-installed on this computer, with usage notes. Call this first when unsure what is available.",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
         "annotations": {"readOnlyHint": True, "openWorldHint": False},
         "fn": t_capabilities,
@@ -348,11 +389,16 @@ TOOLS = [
         "name": "read_document",
         "title": "Read a document",
         "description": "Extract the text of a local file as Markdown: Word, Excel, PowerPoint, PDF, HTML, CSV, "
-                       "plain text, or an image (OCR). Paths may start with ~ ; relative paths are in the UniEnv working folder.",
-        "inputSchema": {"type": "object", "required": ["path"], "additionalProperties": False, "properties": {
-            "path": {"type": "string", "description": "File path, e.g. ~/Downloads/report.pdf"},
-            "max_chars": {"type": "integer", "description": "Maximum characters to return (default 20000)"},
-        }},
+        "plain text, or an image (OCR). Paths may start with ~ ; relative paths are in the UniEnv working folder.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["path"],
+            "additionalProperties": False,
+            "properties": {
+                "path": {"type": "string", "description": "File path, e.g. ~/Downloads/report.pdf"},
+                "max_chars": {"type": "integer", "description": "Maximum characters to return (default 20000)"},
+            },
+        },
         "annotations": {"readOnlyHint": True, "openWorldHint": False},
         "fn": t_read_document,
     },
@@ -360,30 +406,44 @@ TOOLS = [
         "name": "convert_document",
         "title": "Convert a document",
         "description": "Convert a local file to another format and save it next to the original (or in output_dir). "
-                       "Examples: docx/xlsx/pptx/md/html → pdf, md/html → docx, doc → docx, docx → md, pdf → txt/png "
-                       "(pages go into a new <name>-pages folder). Never overwrites: adds -1, -2 … to the name if "
-                       "needed. Returns the new file's path.",
-        "inputSchema": {"type": "object", "required": ["input_path", "output_format"], "additionalProperties": False,
-                        "properties": {
-                            "input_path": {"type": "string"},
-                            "output_format": {"type": "string", "description": "pdf, docx, md, html, txt, xlsx, pptx, csv, png …"},
-                            "output_dir": {"type": "string", "description": "Optional folder for the result"},
-                        }},
-        "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False},
+        "Examples: docx/xlsx/pptx/md/html → pdf, md/html → docx, doc → docx, docx → md, pdf → txt/png "
+        "(pages go into a new <name>-pages folder). Never overwrites: adds -1, -2 … to the name if "
+        "needed. Returns the new file's path.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["input_path", "output_format"],
+            "additionalProperties": False,
+            "properties": {
+                "input_path": {"type": "string"},
+                "output_format": {"type": "string", "description": "pdf, docx, md, html, txt, xlsx, pptx, csv, png …"},
+                "output_dir": {"type": "string", "description": "Optional folder for the result"},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": False,
+            "openWorldHint": False,
+        },
         "fn": t_convert_document,
     },
     {
         "name": "run_python",
         "title": "Run Python",
         "description": "Run a Python 3.12 script with UniEnv's pre-installed packages (python-docx, openpyxl, "
-                       "python-pptx, pandas, matplotlib, pypdf, reportlab, duckdb …). Use it to create or edit Word/Excel/"
-                       "PowerPoint files, analyse data and make charts. Runs in the UniEnv working folder unless cwd is "
-                       "given; reports stdout/stderr and the files it created. Never pip install here: use install_package.",
-        "inputSchema": {"type": "object", "required": ["code"], "additionalProperties": False, "properties": {
-            "code": {"type": "string", "description": "Complete Python script"},
-            "cwd": {"type": "string", "description": "Working directory (default: the UniEnv working folder)"},
-            "timeout_s": {"type": "integer", "description": f"Default {DEFAULT_TIMEOUT}, max {MAX_TIMEOUT}"},
-        }},
+        "python-pptx, pandas, matplotlib, pypdf, reportlab, duckdb …). Use it to create or edit Word/Excel/"
+        "PowerPoint files, analyse data and make charts. Runs in the UniEnv working folder unless cwd is "
+        "given; reports stdout/stderr and the files it created. Never pip install here: use install_package.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["code"],
+            "additionalProperties": False,
+            "properties": {
+                "code": {"type": "string", "description": "Complete Python script"},
+                "cwd": {"type": "string", "description": "Working directory (default: the UniEnv working folder)"},
+                "timeout_s": {"type": "integer", "description": f"Default {DEFAULT_TIMEOUT}, max {MAX_TIMEOUT}"},
+            },
+        },
         "annotations": {"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True},
         "fn": t_run_python,
     },
@@ -391,14 +451,23 @@ TOOLS = [
         "name": "run_tool",
         "title": "Run a UniEnv tool",
         "description": "Run one of UniEnv's command-line tools (pandoc, soffice-safe, pdftotext, pdftoppm, qpdf, gs, "
-                       "tesseract, duckdb, jq, rg, ffmpeg, magick, ue-node …) with a list of arguments. No shell: pass each "
-                       "argument as a separate list item. See unienv_capabilities for the exact list.",
-        "inputSchema": {"type": "object", "required": ["tool"], "additionalProperties": False, "properties": {
-            "tool": {"type": "string", "description": "Tool name, e.g. pandoc"},
-            "args": {"type": "array", "items": {"type": "string"}, "description": "Arguments, e.g. [\"in.md\", \"-o\", \"out.docx\"]"},
-            "cwd": {"type": "string"},
-            "timeout_s": {"type": "integer"},
-        }},
+        "tesseract, duckdb, jq, rg, ffmpeg, magick, ue-node …) with a list of arguments. No shell: pass each "
+        "argument as a separate list item. See unienv_capabilities for the exact list.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["tool"],
+            "additionalProperties": False,
+            "properties": {
+                "tool": {"type": "string", "description": "Tool name, e.g. pandoc"},
+                "args": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": 'Arguments, e.g. ["in.md", "-o", "out.docx"]',
+                },
+                "cwd": {"type": "string"},
+                "timeout_s": {"type": "integer"},
+            },
+        },
         "annotations": {"readOnlyHint": False, "destructiveHint": True, "openWorldHint": False},
         "fn": t_run_tool,
     },
@@ -406,11 +475,16 @@ TOOLS = [
         "name": "install_package",
         "title": "Install a package permanently",
         "description": "Permanently add a missing package to UniEnv so every AI tool on this computer can use it: "
-                       "kind=python (PyPI, default), node (npm), brew (Homebrew formula, e.g. ffmpeg) or cask (macOS app).",
-        "inputSchema": {"type": "object", "required": ["name"], "additionalProperties": False, "properties": {
-            "name": {"type": "string", "description": "Package name, e.g. seaborn"},
-            "kind": {"type": "string", "enum": ["python", "node", "brew", "cask"]},
-        }},
+        "kind=python (PyPI, default), node (npm), brew (Homebrew formula, e.g. ffmpeg) or cask (macOS app).",
+        "inputSchema": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": False,
+            "properties": {
+                "name": {"type": "string", "description": "Package name, e.g. seaborn"},
+                "kind": {"type": "string", "enum": ["python", "node", "brew", "cask"]},
+            },
+        },
         "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True},
         "fn": t_install_package,
     },
@@ -429,6 +503,7 @@ INSTRUCTIONS = (
 
 # ── JSON-RPC / MCP plumbing ─────────────────────────────────────────────────
 
+
 def handle(msg: dict) -> dict | None:
     method, mid, params = msg.get("method"), msg.get("id"), msg.get("params") or {}
     if mid is None:  # notification (initialized, cancelled, ...): nothing to send back
@@ -443,10 +518,14 @@ def handle(msg: dict) -> dict | None:
     if method == "initialize":
         wanted = params.get("protocolVersion")
         version = wanted if wanted in PROTOCOL_VERSIONS else PROTOCOL_VERSIONS[0]
-        return ok({"protocolVersion": version,
-                   "capabilities": {"tools": {"listChanged": False}},
-                   "serverInfo": {"name": SERVER_NAME, "title": "UniEnv AI", "version": SERVER_VERSION},
-                   "instructions": INSTRUCTIONS})
+        return ok(
+            {
+                "protocolVersion": version,
+                "capabilities": {"tools": {"listChanged": False}},
+                "serverInfo": {"name": SERVER_NAME, "title": "UniEnv AI", "version": SERVER_VERSION},
+                "instructions": INSTRUCTIONS,
+            }
+        )
     if method == "ping":
         return ok({})
     if method == "tools/list":

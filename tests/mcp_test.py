@@ -7,6 +7,7 @@ but JSON-RPC. Exit code = number of failures.
 
     python3 tests/mcp_test.py
 """
+
 import json
 import os
 import shutil
@@ -17,7 +18,9 @@ from pathlib import Path
 
 UE = Path(os.environ.get("UNIENV_HOME", Path.home() / ".unienv")) / "bin" / "unienv"
 WORK = Path(tempfile.mkdtemp(prefix="ue_mcp_test."))
-HAS_SOFFICE = os.access("/Applications/LibreOffice.app/Contents/MacOS/soffice", os.X_OK) or bool(shutil.which("soffice"))
+HAS_SOFFICE = os.access("/Applications/LibreOffice.app/Contents/MacOS/soffice", os.X_OK) or bool(
+    shutil.which("soffice")
+)
 
 
 def call(i, name, args):
@@ -25,25 +28,49 @@ def call(i, name, args):
 
 
 msgs = [
-    {"jsonrpc": "2.0", "id": 1, "method": "initialize",
-     "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "mcp_test", "version": "1"}}},
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-06-18",
+            "capabilities": {},
+            "clientInfo": {"name": "mcp_test", "version": "1"},
+        },
+    },
     {"jsonrpc": "2.0", "method": "notifications/initialized"},
     {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
     call(3, "unienv_capabilities", {}),
-    call(4, "run_python", {"code": "import docx\nd = docx.Document(); d.add_heading('MCP works', 1)\n"
-                                   "d.add_paragraph('hello from unienv-mcp'); d.save('t.docx'); print('saved')"}),
+    call(
+        4,
+        "run_python",
+        {
+            "code": "import docx\nd = docx.Document(); d.add_heading('MCP works', 1)\n"
+            "d.add_paragraph('hello from unienv-mcp'); d.save('t.docx'); print('saved')"
+        },
+    ),
     call(5, "read_document", {"path": "t.docx"}),
     call(6, "convert_document", {"input_path": "t.docx", "output_format": "md"}),
     call(7, "run_tool", {"tool": "bash", "args": ["-c", "id"]}),
     call(8, "run_python", {"code": "raise SystemExit(3)"}),
     call(9, "install_package", {"name": "x; rm -rf /", "kind": "python"}),
     {"jsonrpc": "2.0", "id": 10, "method": "tools/call", "params": {"name": "nope", "arguments": {}}},
-    {"jsonrpc": "2.0", "id": 11, "method": "initialize",
-     "params": {"protocolVersion": "1999-01-01", "capabilities": {}, "clientInfo": {"name": "old", "version": "1"}}},
+    {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "method": "initialize",
+        "params": {"protocolVersion": "1999-01-01", "capabilities": {}, "clientInfo": {"name": "old", "version": "1"}},
+    },
     call(13, "install_package", {"name": "pandas -y", "kind": "python"}),
     call(14, "install_package", {"name": "seaborn --cask evil", "kind": "python"}),
-    call(15, "run_python", {"code": "from reportlab.pdfgen import canvas\nc = canvas.Canvas('two.pdf')\n"
-                                    "for t in ('one', 'two'):\n    c.drawString(100, 750, t); c.showPage()\nc.save()"}),
+    call(
+        15,
+        "run_python",
+        {
+            "code": "from reportlab.pdfgen import canvas\nc = canvas.Canvas('two.pdf')\n"
+            "for t in ('one', 'two'):\n    c.drawString(100, 750, t); c.showPage()\nc.save()"
+        },
+    ),
     call(16, "convert_document", {"input_path": "two.pdf", "output_format": "png"}),
     call(17, "convert_document", {"input_path": "two.pdf", "output_format": "png"}),
 ]
@@ -53,8 +80,14 @@ if HAS_SOFFICE:
 env = {"HOME": str(Path.home()), "PATH": "/usr/bin:/bin", "UNIENV_WORKDIR": str(WORK)}
 if "UNIENV_HOME" in os.environ:
     env["UNIENV_HOME"] = os.environ["UNIENV_HOME"]
-proc = subprocess.run([str(UE), "mcp"], input="\n".join(map(json.dumps, msgs)) + "\n",
-                      capture_output=True, text=True, env=env, timeout=600)
+proc = subprocess.run(
+    [str(UE), "mcp"],
+    input="\n".join(map(json.dumps, msgs)) + "\n",
+    capture_output=True,
+    text=True,
+    env=env,
+    timeout=600,
+)
 lines = proc.stdout.splitlines()
 replies = {m.get("id"): m for m in map(json.loads, lines)}
 failures = 0
@@ -74,15 +107,20 @@ def is_error(i):
     return replies[i]["result"]["isError"]
 
 
-check("stdout is pure JSON-RPC", all(l.startswith("{") for l in lines))
+check("stdout is pure JSON-RPC", all(ln.startswith("{") for ln in lines))
 check("initialize negotiates the client's version", replies[1]["result"]["protocolVersion"] == "2025-06-18")
 check("unknown version falls back to the newest supported", replies[11]["result"]["protocolVersion"] >= "2025-06-18")
 check("server identifies as unienv", replies[1]["result"]["serverInfo"]["name"] == "unienv")
 tools = {t["name"]: t for t in replies[2]["result"]["tools"]}
-check("6 tools listed", set(tools) == {"unienv_capabilities", "read_document", "convert_document",
-                                      "run_python", "run_tool", "install_package"})
-check("read-only tools are annotated read-only",
-      tools["read_document"]["annotations"]["readOnlyHint"] and not tools["run_python"]["annotations"]["readOnlyHint"])
+check(
+    "6 tools listed",
+    set(tools)
+    == {"unienv_capabilities", "read_document", "convert_document", "run_python", "run_tool", "install_package"},
+)
+check(
+    "read-only tools are annotated read-only",
+    tools["read_document"]["annotations"]["readOnlyHint"] and not tools["run_python"]["annotations"]["readOnlyHint"],
+)
 check("capabilities lists python-docx", "python-docx" in text(3))
 check("run_python creates a file and reports it", not is_error(4) and "t.docx" in text(4) and "saved" in text(4))
 check("read_document reads it back", not is_error(5) and "hello from unienv-mcp" in text(5))
@@ -94,8 +132,13 @@ check("unknown tool is a JSON-RPC error", replies[10].get("error", {}).get("code
 check("install_package rejects smuggled flags (-y)", is_error(13) and "invalid package name" in text(13))
 check("install_package rejects smuggled flags (--cask)", is_error(14) and "invalid package name" in text(14))
 renders = sorted(WORK.glob("two-pages*"))
-check("pdf → png twice keeps both renders", not is_error(16) and not is_error(17) and len(renders) == 2
-      and all(len(list(r.glob("*.png"))) == 2 for r in renders))
+check(
+    "pdf → png twice keeps both renders",
+    not is_error(16)
+    and not is_error(17)
+    and len(renders) == 2
+    and all(len(list(r.glob("*.png"))) == 2 for r in renders),
+)
 check("pdf → png lists only this call's pages", text(16) != text(17) and text(17).count(".png") == 2)
 if HAS_SOFFICE:
     check("convert_document docx → pdf via LibreOffice", not is_error(12) and (WORK / "t.pdf").exists())

@@ -8,6 +8,7 @@ Gemini CLI, OpenCode, ...) what is installed and how to use it.
 Standard library only (Python >= 3.11), so the CLI keeps working even when the
 environment it manages is broken. Run `unienv --help`.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -46,8 +47,13 @@ LOG_FILE = UNIENV_HOME / "log" / "unienv.log"
 BACKUP_DIR = UNIENV_HOME / "backups"
 
 IS_MAC = sys.platform == "darwin"
-EXTRA_DIRS = ["/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin",
-              str(HOME / ".local/bin"), str(HOME / ".cargo/bin")]
+EXTRA_DIRS = [
+    "/opt/homebrew/bin",
+    "/opt/homebrew/sbin",
+    "/usr/local/bin",
+    str(HOME / ".local/bin"),
+    str(HOME / ".cargo/bin"),
+]
 
 SHELL_BEGIN, SHELL_END = "# >>> unienv >>>", "# <<< unienv <<<"
 MD_BEGIN, MD_END = "<!-- >>> unienv (managed block, do not edit) >>> -->", "<!-- <<< unienv <<< -->"
@@ -89,6 +95,7 @@ def log_event(**fields) -> None:
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 
+
 def search_path() -> str:
     """PATH used to locate tools: ours first, then common install dirs, then the caller's."""
     parts = [str(BIN)] + EXTRA_DIRS + os.environ.get("PATH", "").split(os.pathsep)
@@ -118,15 +125,21 @@ def resolve_bin(name: str) -> str | None:
     return which(name)
 
 
-def run(cmd: list[str], *, cwd: Path | None = None, env: dict | None = None,
-        check: bool = True, capture: bool = False, quiet: bool = False,
-        timeout: int | None = None) -> subprocess.CompletedProcess:
+def run(
+    cmd: list[str],
+    *,
+    cwd: Path | None = None,
+    env: dict | None = None,
+    check: bool = True,
+    capture: bool = False,
+    quiet: bool = False,
+    timeout: int | None = None,
+) -> subprocess.CompletedProcess:
     if not quiet and not capture:
         info(_c("2", "  $ " + " ".join(cmd)))
     full_env = {**os.environ, "PATH": search_path(), **(env or {})}
     try:
-        r = subprocess.run(cmd, cwd=cwd, env=full_env, text=True, timeout=timeout,
-                           capture_output=capture)
+        r = subprocess.run(cmd, cwd=cwd, env=full_env, text=True, timeout=timeout, capture_output=capture)
     except FileNotFoundError:
         if check:
             die(f"command not found: {cmd[0]}")
@@ -160,7 +173,7 @@ def node_name(spec: str) -> str:
 
 def node_version(spec: str) -> str:
     name = node_name(spec)
-    rest = spec[len(name):]
+    rest = spec[len(name) :]
     return rest[1:] if rest.startswith("@") and len(rest) > 1 else "latest"
 
 
@@ -245,6 +258,7 @@ def read_block(path: Path, begin: str, end: str) -> str | None:
 
 # ── recipes & state ─────────────────────────────────────────────────────────
 
+
 def load_recipes() -> dict[str, dict]:
     recipes = {}
     for p in sorted(RECIPES_DIR.glob("*.toml")):
@@ -265,8 +279,13 @@ def validate_recipe(r: dict, stem: str) -> list[str]:
         problems.append(f"id must match file name ({stem!r})")
     if not r.get("summary"):
         problems.append("summary is required")
-    for section, key in [("python", "packages"), ("python", "imports"), ("node", "packages"),
-                         ("node", "modules"), ("verify", "bins")]:
+    for section, key in [
+        ("python", "packages"),
+        ("python", "imports"),
+        ("node", "packages"),
+        ("node", "modules"),
+        ("verify", "bins"),
+    ]:
         v = r.get(section, {}).get(key, [])
         if not isinstance(v, list) or not all(isinstance(x, str) for x in v):
             problems.append(f"[{section}].{key} must be a list of strings")
@@ -319,8 +338,9 @@ def wanted(recipes: list[dict], state: dict) -> dict[str, list[str]]:
     def system(kind: str) -> list[str]:
         pkgs = [p for r in recipes for p in r.get("system", {}).get(pk, {}).get(kind, [])]
         # "libreoffice" also excludes apt's "libreoffice-writer", "libreoffice-calc", ...
-        return [p for p in uniq(pkgs + state["extras"][kind])
-                if not any(p == x or p.startswith(x + "-") for x in excluded)]
+        return [
+            p for p in uniq(pkgs + state["extras"][kind]) if not any(p == x or p.startswith(x + "-") for x in excluded)
+        ]
 
     bins, skipped = [], []
     for r in recipes:
@@ -328,7 +348,9 @@ def wanted(recipes: list[dict], state: dict) -> dict[str, list[str]]:
         for b in r.get("verify", {}).get("bins", []):
             (skipped if provided_by.get(b) in excluded else bins).append(b)
     return {
-        "python": uniq([p for r in recipes for p in r.get("python", {}).get("packages", [])] + state["extras"]["python"]),
+        "python": uniq(
+            [p for r in recipes for p in r.get("python", {}).get("packages", [])] + state["extras"]["python"]
+        ),
         "node": uniq([p for r in recipes for p in r.get("node", {}).get("packages", [])] + state["extras"]["node"]),
         "brew": system("brew"),
         "cask": system("cask"),
@@ -339,6 +361,7 @@ def wanted(recipes: list[dict], state: dict) -> dict[str, list[str]]:
 
 
 # ── installers ──────────────────────────────────────────────────────────────
+
 
 def install_system(w: dict, *, assume_yes: bool) -> list[str]:
     """Install system packages. Returns a list of failures."""
@@ -419,15 +442,21 @@ def write_pyproject(packages: list[str]) -> None:
 def install_python(packages: list[str]) -> None:
     uv = find_uv()
     write_pyproject(packages)
-    run([uv, "sync", "--project", str(PY_DIR), "--managed-python", "--quiet"],
-        env={"UV_PROJECT_ENVIRONMENT": str(PY_DIR / ".venv")})
+    run(
+        [uv, "sync", "--project", str(PY_DIR), "--managed-python", "--quiet"],
+        env={"UV_PROJECT_ENVIRONMENT": str(PY_DIR / ".venv")},
+    )
 
 
 def write_package_json(packages: list[str]) -> None:
     NODE_DIR.mkdir(parents=True, exist_ok=True)
     pj = NODE_DIR / "package.json"
-    data = {"name": "unienv-node", "private": True, "description": "Generated by unienv",
-            "dependencies": {node_name(p): node_version(p) for p in packages}}
+    data = {
+        "name": "unienv-node",
+        "private": True,
+        "description": "Generated by unienv",
+        "dependencies": {node_name(p): node_version(p) for p in packages},
+    }
     if pj.exists():  # keep resolved ranges npm already wrote for unchanged packages
         old = json.loads(pj.read_text()).get("dependencies", {})
         for k, v in data["dependencies"].items():
@@ -444,11 +473,14 @@ def install_node(packages: list[str]) -> None:
         warn("npm not found; skipping Node batteries (install Node.js, then `unienv install`).")
         return
     write_package_json(packages)
-    run([npm, "install", "--no-audit", "--no-fund", "--loglevel=error", "--progress=false",
-         "--no-update-notifier"], cwd=NODE_DIR)
+    run(
+        [npm, "install", "--no-audit", "--no-fund", "--loglevel=error", "--progress=false", "--no-update-notifier"],
+        cwd=NODE_DIR,
+    )
 
 
 # ── generated files: shims, env.sh, manifest, agent files ───────────────────
+
 
 def write_shims() -> None:
     BIN.mkdir(parents=True, exist_ok=True)
@@ -517,9 +549,16 @@ def python_packages() -> dict[str, str]:
     py = PY_DIR / ".venv/bin/python"
     if not py.exists():
         return {}
-    r = run([str(py), "-c", "import importlib.metadata as m, json;"
-             "print(json.dumps({d.metadata['Name']: d.version for d in m.distributions()}))"],
-            capture=True, check=False)
+    r = run(
+        [
+            str(py),
+            "-c",
+            "import importlib.metadata as m, json;"
+            "print(json.dumps({d.metadata['Name']: d.version for d in m.distributions()}))",
+        ],
+        capture=True,
+        check=False,
+    )
     try:
         return {norm(k): v for k, v in json.loads(r.stdout).items()}
     except (json.JSONDecodeError, TypeError):
@@ -544,8 +583,12 @@ def write_manifest(recipes: list[dict], state: dict, w: dict) -> dict:
         "home": str(UNIENV_HOME),
         "platform": f"{platform.system()} {platform.machine()}",
         "batteries": [r["id"] for r in recipes],
-        "python": {"command": str(BIN / "ue-py"), "executable": str(PY_DIR / ".venv/bin/python"),
-                   "version": PY_VERSION, "packages": top},
+        "python": {
+            "command": str(BIN / "ue-py"),
+            "executable": str(PY_DIR / ".venv/bin/python"),
+            "version": PY_VERSION,
+            "packages": top,
+        },
         "node": {"command": str(BIN / "ue-node"), "packages": node_packages(w["node"])},
         "bins": {b: resolve_bin(b) for b in w["bins"]},
         "extras": state["extras"],
@@ -564,9 +607,13 @@ def render_agent_block(manifest: dict) -> str:
     tools = [b for b, p in manifest["bins"].items() if p]
     py = [f"{k}" for k, v in manifest["python"]["packages"].items() if v]
     node = [k for k, v in manifest["node"]["packages"].items() if v]
-    return (tpl.replace("{{BIN}}", str(BIN)).replace("{{HOME_DIR}}", str(UNIENV_HOME))
-            .replace("{{TOOLS}}", _fmt_list(tools)).replace("{{PY_PACKAGES}}", _fmt_list(py))
-            .replace("{{NODE_PACKAGES}}", _fmt_list(node))).rstrip() + "\n"
+    return (
+        tpl.replace("{{BIN}}", str(BIN))
+        .replace("{{HOME_DIR}}", str(UNIENV_HOME))
+        .replace("{{TOOLS}}", _fmt_list(tools))
+        .replace("{{PY_PACKAGES}}", _fmt_list(py))
+        .replace("{{NODE_PACKAGES}}", _fmt_list(node))
+    ).rstrip() + "\n"
 
 
 def render_skill(manifest: dict, recipes: list[dict]) -> str:
@@ -576,23 +623,50 @@ def render_skill(manifest: dict, recipes: list[dict]) -> str:
         if r.get("agent", {}).get("notes"):
             notes.append(f"### {r['id']}: {r['summary']}\n\n{r['agent']['notes'].strip()}\n")
     py = [f"{k} {v}" for k, v in manifest["python"]["packages"].items() if v]
-    return (tpl.replace("{{BIN}}", str(BIN)).replace("{{HOME_DIR}}", str(UNIENV_HOME))
-            .replace("{{BATTERIES}}", ", ".join(manifest["batteries"]))
-            .replace("{{NOTES}}", "\n".join(notes).strip())
-            .replace("{{PY_PACKAGES}}", "\n".join(f"- {p}" for p in py) or "(none)"))
+    return (
+        tpl.replace("{{BIN}}", str(BIN))
+        .replace("{{HOME_DIR}}", str(UNIENV_HOME))
+        .replace("{{BATTERIES}}", ", ".join(manifest["batteries"]))
+        .replace("{{NOTES}}", "\n".join(notes).strip())
+        .replace("{{PY_PACKAGES}}", "\n".join(f"- {p}" for p in py) or "(none)")
+    )
 
 
 def agent_targets() -> list[dict]:
     codex_home = Path(os.environ.get("CODEX_HOME", HOME / ".codex"))
     return [
-        {"id": "claude-code", "name": "Claude Code", "detect": [HOME / ".claude"], "bin": "claude",
-         "instructions": HOME / ".claude/CLAUDE.md", "skills": HOME / ".claude/skills"},
-        {"id": "codex", "name": "Codex CLI", "detect": [codex_home], "bin": "codex",
-         "instructions": codex_home / "AGENTS.md", "skills": codex_home / "skills"},
-        {"id": "gemini", "name": "Gemini CLI", "detect": [HOME / ".gemini"], "bin": "gemini",
-         "instructions": HOME / ".gemini/GEMINI.md", "skills": None},
-        {"id": "opencode", "name": "OpenCode", "detect": [HOME / ".config/opencode"], "bin": "opencode",
-         "instructions": HOME / ".config/opencode/AGENTS.md", "skills": None},
+        {
+            "id": "claude-code",
+            "name": "Claude Code",
+            "detect": [HOME / ".claude"],
+            "bin": "claude",
+            "instructions": HOME / ".claude/CLAUDE.md",
+            "skills": HOME / ".claude/skills",
+        },
+        {
+            "id": "codex",
+            "name": "Codex CLI",
+            "detect": [codex_home],
+            "bin": "codex",
+            "instructions": codex_home / "AGENTS.md",
+            "skills": codex_home / "skills",
+        },
+        {
+            "id": "gemini",
+            "name": "Gemini CLI",
+            "detect": [HOME / ".gemini"],
+            "bin": "gemini",
+            "instructions": HOME / ".gemini/GEMINI.md",
+            "skills": None,
+        },
+        {
+            "id": "opencode",
+            "name": "OpenCode",
+            "detect": [HOME / ".config/opencode"],
+            "bin": "opencode",
+            "instructions": HOME / ".config/opencode/AGENTS.md",
+            "skills": None,
+        },
     ]
 
 
@@ -630,8 +704,9 @@ def wire_shells() -> list[str]:
     return changed
 
 
-def do_sync(state: dict, recipes_all: dict, *, quiet: bool = False, wire: bool = True,
-            all_agents: bool = False) -> dict:
+def do_sync(
+    state: dict, recipes_all: dict, *, quiet: bool = False, wire: bool = True, all_agents: bool = False
+) -> dict:
     recipes = active_recipes(recipes_all, state)
     w = wanted(recipes, state)
     write_shims()
@@ -649,6 +724,7 @@ def do_sync(state: dict, recipes_all: dict, *, quiet: bool = False, wire: bool =
 
 # ── commands ────────────────────────────────────────────────────────────────
 
+
 def _tty():
     """(reader, writer) for the user's terminal, even when stdin is a pipe (curl | bash)."""
     if not sys.stdout.isatty() or os.environ.get("CI"):
@@ -665,8 +741,9 @@ def pick_batteries(recipes_all: dict, current: list[str]) -> list[str]:
     if tty is None:
         return current
     tin, tout = tty
-    choices = sorted((k for k, r in recipes_all.items() if not r.get("always")),
-                     key=lambda k: (not recipes_all[k].get("default"), k))
+    choices = sorted(
+        (k for k, r in recipes_all.items() if not r.get("always")), key=lambda k: (not recipes_all[k].get("default"), k)
+    )
     selected = set(current)
     while True:
         tout.write("\n" + _c("1", "Choose batteries") + _c("2", "  (core is always installed)") + "\n")
@@ -698,8 +775,9 @@ def cmd_install(args) -> int:
             die(f"unknown batteries: {', '.join(bad)}. Available: {', '.join(recipes_all)}")
         state["batteries"] = [b for b in req if not recipes_all[b].get("always")]
     if args.exclude:
-        state["options"]["exclude"] = uniq(state["options"]["exclude"]
-                                           + [x.strip() for x in args.exclude.split(",") if x.strip()])
+        state["options"]["exclude"] = uniq(
+            state["options"]["exclude"] + [x.strip() for x in args.exclude.split(",") if x.strip()]
+        )
     if args.add:
         req = [b.strip() for b in args.add.split(",") if b.strip()]
         bad = [b for b in req if b not in recipes_all]
@@ -760,9 +838,15 @@ def cmd_need(args) -> int:
     if not new:
         info(f"✓ already available: {', '.join(pkgs)}")
         return 0
-    curated = {key(p) for r in recipes_all.values()
-               for p in (r.get(kind, {}).get("packages", []) if kind in ("python", "node")
-                         else [x for s in r.get("system", {}).values() for x in s.get(kind, [])])}
+    curated = {
+        key(p)
+        for r in recipes_all.values()
+        for p in (
+            r.get(kind, {}).get("packages", [])
+            if kind in ("python", "node")
+            else [x for s in r.get("system", {}).values() for x in s.get(kind, [])]
+        )
+    }
     uncurated = [p for p in new if key(p) not in curated]
     if uncurated:
         info(f"  note: not in a curated recipe, installing from the public registry: {', '.join(uncurated)}")
@@ -770,8 +854,13 @@ def cmd_need(args) -> int:
     # snapshot so a failed install can be rolled back exactly
     snap = BACKUP_DIR / _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     snap.mkdir(parents=True, exist_ok=True)
-    for f in [STATE_FILE, PY_DIR / "pyproject.toml", PY_DIR / "uv.lock",
-              NODE_DIR / "package.json", NODE_DIR / "package-lock.json"]:
+    for f in [
+        STATE_FILE,
+        PY_DIR / "pyproject.toml",
+        PY_DIR / "uv.lock",
+        NODE_DIR / "package.json",
+        NODE_DIR / "package-lock.json",
+    ]:
         if f.exists():
             shutil.copy2(f, snap / f"{f.parent.name}__{f.name}")
 
@@ -784,9 +873,16 @@ def cmd_need(args) -> int:
         elif kind == "node":
             install_node(w["node"])
         else:
-            failed = install_system({**w, kind: new, "brew": new if kind == "brew" else [],
-                                     "cask": new if kind == "cask" else [], "apt": new if kind == "apt" else []},
-                                    assume_yes=args.yes)
+            failed = install_system(
+                {
+                    **w,
+                    kind: new,
+                    "brew": new if kind == "brew" else [],
+                    "cask": new if kind == "cask" else [],
+                    "apt": new if kind == "apt" else [],
+                },
+                assume_yes=args.yes,
+            )
             if failed:
                 raise RuntimeError(", ".join(failed))
     except (subprocess.CalledProcessError, RuntimeError, SystemExit) as e:
@@ -846,8 +942,11 @@ def cmd_status(args) -> int:
     m = json.loads(MANIFEST_FILE.read_text())
     py = [k for k, v in m["python"]["packages"].items() if v]
     bins = [b for b, path in m["bins"].items() if path]
-    agents = [a["name"] for a in agent_targets() if detected(a)
-              and read_block(a["instructions"], MD_BEGIN, MD_END) is not None]
+    agents = [
+        a["name"]
+        for a in agent_targets()
+        if detected(a) and read_block(a["instructions"], MD_BEGIN, MD_END) is not None
+    ]
     info("")
     info(f"  {_c('2', 'home     ')} {str(UNIENV_HOME).replace(str(HOME), '~', 1)}")
     info(f"  {_c('2', 'batteries')} {', '.join(m['batteries'])}")
@@ -866,10 +965,12 @@ REPO_TARBALL = "https://github.com/rupeshbharambe24/unienv-ai/archive/refs/heads
 
 # ── MCP server for desktop apps ─────────────────────────────────────────────
 
+
 def mcp_clients() -> dict[str, Path]:
     """Config files of MCP clients that can't run shell commands themselves (or benefit anyway)."""
     return {
-        "claude-desktop": (HOME / "Library/Application Support/Claude/claude_desktop_config.json") if IS_MAC
+        "claude-desktop": (HOME / "Library/Application Support/Claude/claude_desktop_config.json")
+        if IS_MAC
         else (HOME / ".config/Claude/claude_desktop_config.json"),
         "cursor": HOME / ".cursor/mcp.json",
     }
@@ -916,6 +1017,7 @@ def cmd_mcp(args) -> int:
     if args.action == "serve":
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import unienv_mcp
+
         return unienv_mcp.serve()
     if args.action == "config":
         print(json.dumps({"mcpServers": {"unienv": mcp_entry()}}, indent=2))
@@ -940,21 +1042,41 @@ def cmd_mcp(args) -> int:
 def mcp_handshake(timeout: float = 15) -> tuple[bool, str, float]:
     """Start the MCP server exactly like a client would and complete initialize + tools/list."""
     msgs = [
-        {"jsonrpc": "2.0", "id": 1, "method": "initialize",
-         "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "unienv-doctor", "version": VERSION}}},
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {"name": "unienv-doctor", "version": VERSION},
+            },
+        },
         {"jsonrpc": "2.0", "method": "notifications/initialized"},
         {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
     ]
     start = time.monotonic()
     try:
-        r = subprocess.run([mcp_entry()["command"], *mcp_entry()["args"]], input="\n".join(map(json.dumps, msgs)) + "\n",
-                           capture_output=True, text=True, timeout=timeout,
-                           env={"HOME": str(HOME), "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
-                                **({"UNIENV_HOME": os.environ["UNIENV_HOME"]} if "UNIENV_HOME" in os.environ else {})})
-        replies = [json.loads(l) for l in r.stdout.splitlines() if l.strip()]
+        r = subprocess.run(
+            [mcp_entry()["command"], *mcp_entry()["args"]],
+            input="\n".join(map(json.dumps, msgs)) + "\n",
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env={
+                "HOME": str(HOME),
+                "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                **({"UNIENV_HOME": os.environ["UNIENV_HOME"]} if "UNIENV_HOME" in os.environ else {}),
+            },
+        )
+        replies = [json.loads(ln) for ln in r.stdout.splitlines() if ln.strip()]
         tools = next((m["result"]["tools"] for m in replies if m.get("id") == 2), None)
         ok = bool(tools) and replies[0].get("result", {}).get("serverInfo", {}).get("name") == "unienv"
-        return ok, (f"{len(tools)} tools" if tools else (r.stderr.strip()[-200:] or "no reply")), time.monotonic() - start
+        return (
+            ok,
+            (f"{len(tools)} tools" if tools else (r.stderr.strip()[-200:] or "no reply")),
+            time.monotonic() - start,
+        )
     except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError, KeyError, IndexError) as e:
         return False, f"{type(e).__name__}: {e}", time.monotonic() - start
 
@@ -964,6 +1086,7 @@ def cmd_update(args) -> int:
     import tarfile
     import tempfile
     import urllib.request
+
     share = UNIENV_HOME / "share"
     if share.is_symlink():
         die(f"{share} links to a development checkout; update it with `git pull` instead.")
@@ -989,10 +1112,15 @@ def cmd_update(args) -> int:
 
 # ── doctor ──────────────────────────────────────────────────────────────────
 
+
 def _clean_shell_probe(argv: list[str]) -> str | None:
     """Run `command -v ue-py` in a shell started from a near-empty environment, like an agent or GUI app."""
-    env = {"HOME": str(HOME), "USER": os.environ.get("USER", ""), "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
-           "TERM": "dumb"}
+    env = {
+        "HOME": str(HOME),
+        "USER": os.environ.get("USER", ""),
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "TERM": "dumb",
+    }
     if "UNIENV_HOME" in os.environ:
         env["UNIENV_HOME"] = os.environ["UNIENV_HOME"]
     try:
@@ -1025,11 +1153,13 @@ def cmd_doctor(args) -> int:
     if not py.exists():
         add("python", "fail", "shared Python env missing", "unienv install")
     else:
-        code = ("import importlib, json, sys\nbad = {}\n"
-                f"for m in {imports!r}:\n"
-                "    try: importlib.import_module(m)\n"
-                "    except Exception as e: bad[m] = f'{type(e).__name__}: {e}'[:120]\n"
-                "print(json.dumps({'v': sys.version.split()[0], 'bad': bad}))")
+        code = (
+            "import importlib, json, sys\nbad = {}\n"
+            f"for m in {imports!r}:\n"
+            "    try: importlib.import_module(m)\n"
+            "    except Exception as e: bad[m] = f'{type(e).__name__}: {e}'[:120]\n"
+            "print(json.dumps({'v': sys.version.split()[0], 'bad': bad}))"
+        )
         r = run([str(py), "-c", code], capture=True, check=False, timeout=120)
         try:
             res = json.loads(r.stdout.strip().splitlines()[-1])
@@ -1060,14 +1190,20 @@ def cmd_doctor(args) -> int:
             add(f"bin:{b}", "fail", f"{b} not found (battery: {owner})", "unienv install")
 
     for b in w["skipped_bins"]:
-        add(f"bin:{b}", "info", f"{b} skipped by your choice (exclude: {', '.join(state['options']['exclude'])})",
-            "to add it later: unienv need --cask/--bin <package>")
+        add(
+            f"bin:{b}",
+            "info",
+            f"{b} skipped by your choice (exclude: {', '.join(state['options']['exclude'])})",
+            "to add it later: unienv need --cask/--bin <package>",
+        )
 
     # Shell wiring: what agents and GUI apps actually see
     target = str(BIN / "ue-py")
-    probes = [("zsh -c", ["/bin/zsh", "-c", "command -v ue-py"]),
-              ("zsh -lc", ["/bin/zsh", "-lc", "command -v ue-py"]),
-              ("bash -lc", ["/bin/bash", "-lc", "command -v ue-py"])]
+    probes = [
+        ("zsh -c", ["/bin/zsh", "-c", "command -v ue-py"]),
+        ("zsh -lc", ["/bin/zsh", "-lc", "command -v ue-py"]),
+        ("bash -lc", ["/bin/bash", "-lc", "command -v ue-py"]),
+    ]
     for label, argv in probes:
         if not Path(argv[0]).exists():
             continue
@@ -1075,17 +1211,25 @@ def cmd_doctor(args) -> int:
         if got == target:
             add(f"shell:{label}", "ok", f"`{label}` finds ue-py")
         else:
-            add(f"shell:{label}", "fail", f"`{label}` (fresh environment) cannot find ue-py",
-                "unienv sync   # rewrites ~/.zshenv, ~/.profile, ~/.bashrc blocks")
+            add(
+                f"shell:{label}",
+                "fail",
+                f"`{label}` (fresh environment) cannot find ue-py",
+                "unienv sync   # rewrites ~/.zshenv, ~/.profile, ~/.bashrc blocks",
+            )
 
     if IS_MAC:
         r = run(["launchctl", "getenv", "PATH"], capture=True, check=False)
         if str(BIN) in (r.stdout or ""):
             add("gui-path", "ok", "launchd PATH includes UniEnv (GUI apps see it)")
         else:
-            add("gui-path", "info", "GUI apps (Claude Desktop, Dock-launched Cursor) use the system PATH; "
+            add(
+                "gui-path",
+                "info",
+                "GUI apps (Claude Desktop, Dock-launched Cursor) use the system PATH; "
                 "use absolute paths from manifest.json in their configs",
-                "optional, experimental: unienv wire --gui")
+                "optional, experimental: unienv wire --gui",
+            )
 
     # Agent instruction files are present and current
     if MANIFEST_FILE.exists():
@@ -1108,23 +1252,39 @@ def cmd_doctor(args) -> int:
     # Homebrew Python is externally managed; agents must not pip-install into it
     bp = brew_prefix()
     if bp and Path(bp, "bin/python3").exists():
-        r = run([f"{bp}/bin/python3", "-c", "import sysconfig,os;"
-                 "print(os.path.exists(os.path.join(sysconfig.get_path('stdlib'),'EXTERNALLY-MANAGED')))"],
-                capture=True, check=False)
+        r = run(
+            [
+                f"{bp}/bin/python3",
+                "-c",
+                "import sysconfig,os;"
+                "print(os.path.exists(os.path.join(sysconfig.get_path('stdlib'),'EXTERNALLY-MANAGED')))",
+            ],
+            capture=True,
+            check=False,
+        )
         if r.stdout.strip() == "True":
-            add("pep668", "info", f"{bp}/bin/python3 is externally managed (PEP 668); "
-                "agents are told to use ue-py / `unienv need` instead of pip")
+            add(
+                "pep668",
+                "info",
+                f"{bp}/bin/python3 is externally managed (PEP 668); "
+                "agents are told to use ue-py / `unienv need` instead of pip",
+            )
 
     # MCP server for desktop apps: configured clients must point at a server that answers
-    configured = [n for n, p in mcp_clients().items()
-                  if p.exists() and "unienv" in (_load_json(p).get("mcpServers") or {})]
+    configured = [
+        n for n, p in mcp_clients().items() if p.exists() and "unienv" in (_load_json(p).get("mcpServers") or {})
+    ]
     if configured:
         ok, detail, secs = mcp_handshake()
         if ok:
             add("mcp", "ok", f"MCP server answers in {secs:.1f}s ({detail}); configured for {', '.join(configured)}")
         else:
-            add("mcp", "fail", f"MCP server configured for {', '.join(configured)} but the handshake failed: {detail}",
-                "unienv mcp install --client all   # rewrites the entry with absolute paths")
+            add(
+                "mcp",
+                "fail",
+                f"MCP server configured for {', '.join(configured)} but the handshake failed: {detail}",
+                "unienv mcp install --client all   # rewrites the entry with absolute paths",
+            )
     elif IS_MAC and mcp_clients()["claude-desktop"].parent.exists():
         add("mcp", "info", "Claude Desktop chat can't use UniEnv yet", "unienv mcp install")
 
@@ -1143,12 +1303,22 @@ def cmd_doctor(args) -> int:
         text = p.read_text(errors="ignore")
         guarded = "CLAUDECODE" in text or "AI_AGENT" in text
         for name, target in alias_re.findall(text):
-            why = next((w for pat, w in hostile.items()
-                        if re.match(rf"\s*({pat})\b", target) or (name in ("rm", "cp", "mv") and re.search(pat, f"{name} {target}"))), None)
+            why = next(
+                (
+                    w
+                    for pat, w in hostile.items()
+                    if re.match(rf"\s*({pat})\b", target)
+                    or (name in ("rm", "cp", "mv") and re.search(pat, f"{name} {target}"))
+                ),
+                None,
+            )
             if why and not guarded:
-                add(f"alias:{rc}:{name}", "warn",
+                add(
+                    f"alias:{rc}:{name}",
+                    "warn",
                     f"~/{rc}: alias {name}='{target.strip()}' {why}",
-                    'wrap interactive-only aliases: if [ -z "${AI_AGENT:-}${CLAUDECODE:-}" ]; then ... fi')
+                    'wrap interactive-only aliases: if [ -z "${AI_AGENT:-}${CLAUDECODE:-}" ]; then ... fi',
+                )
 
     # Secrets hygiene: report variable names only, never values
     pat = re.compile(r"^\s*export\s+([A-Z0-9_]*(?:API_KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*)=", re.M)
@@ -1157,27 +1327,37 @@ def cmd_doctor(args) -> int:
         if p.exists():
             names = pat.findall(p.read_text(errors="ignore"))
             if names:
-                add(f"secrets:{rc}", "warn", f"~/{rc} exports secrets to every process an agent runs: "
-                    f"{', '.join(sorted(set(names)))}", "load them only where needed (e.g. a keychain lookup)")
+                add(
+                    f"secrets:{rc}",
+                    "warn",
+                    f"~/{rc} exports secrets to every process an agent runs: {', '.join(sorted(set(names)))}",
+                    "load them only where needed (e.g. a keychain lookup)",
+                )
     cdc = HOME / "Library/Application Support/Claude/claude_desktop_config.json"
     if cdc.exists():
         try:
             servers = json.loads(cdc.read_text()).get("mcpServers", {}) or {}
-            leaky = [f"{s}.{k}" for s, cfg in servers.items() for k, v in (cfg.get("env") or {}).items()
-                     if re.search(r"KEY|TOKEN|SECRET|PASSWORD", k) and v and not str(v).startswith("$")]
+            leaky = [
+                f"{s}.{k}"
+                for s, cfg in servers.items()
+                for k, v in (cfg.get("env") or {}).items()
+                if re.search(r"KEY|TOKEN|SECRET|PASSWORD", k) and v and not str(v).startswith("$")
+            ]
             if leaky:
-                add("secrets:claude-desktop", "warn", f"plaintext secrets in claude_desktop_config.json: {', '.join(leaky)}")
+                add(
+                    "secrets:claude-desktop",
+                    "warn",
+                    f"plaintext secrets in claude_desktop_config.json: {', '.join(leaky)}",
+                )
         except (json.JSONDecodeError, AttributeError):
             pass
 
     sync_needed = any(
-        c["status"] in ("fail", "warn")
-        and (c["id"] == "manifest" or c["id"].startswith(("shell:", "agent:")))
+        c["status"] in ("fail", "warn") and (c["id"] == "manifest" or c["id"].startswith(("shell:", "agent:")))
         for c in checks
     )
     if getattr(args, "fix", False) and sync_needed:
-        print("Applying safe fixes: unienv sync",
-              file=sys.stderr if args.json else sys.stdout, flush=True)
+        print("Applying safe fixes: unienv sync", file=sys.stderr if args.json else sys.stdout, flush=True)
         do_sync(state, recipes_all, quiet=True)
         return cmd_doctor(argparse.Namespace(json=args.json, fix=False, quiet_ok=False))
     return _report(checks, args)
@@ -1187,8 +1367,11 @@ def _report(checks: list[dict], args) -> int:
     failed = sum(c["status"] == "fail" for c in checks)
     warned = sum(c["status"] == "warn" for c in checks)
     if getattr(args, "json", False):
-        print(json.dumps({"unienv": VERSION, "ok": failed == 0, "failed": failed, "warnings": warned,
-                          "checks": checks}, indent=2))
+        print(
+            json.dumps(
+                {"unienv": VERSION, "ok": failed == 0, "failed": failed, "warnings": warned, "checks": checks}, indent=2
+            )
+        )
         return 1 if failed else 0
     icon = {"ok": _c("32", "✓"), "fail": _c("31", "✗"), "warn": _c("33", "!"), "info": _c("34", "i")}
     quiet_ok = getattr(args, "quiet_ok", False)
@@ -1209,12 +1392,16 @@ def _report(checks: list[dict], args) -> int:
 
 # ── wire / uninstall ────────────────────────────────────────────────────────
 
+
 def cmd_wire(args) -> int:
     if args.gui:
         if not IS_MAC:
             die("--gui is macOS only")
-        path = os.pathsep.join([str(BIN)] + ([f"{brew_prefix()}/bin"] if brew_prefix() else [])
-                               + ["/usr/bin", "/bin", "/usr/sbin", "/sbin"])
+        path = os.pathsep.join(
+            [str(BIN)]
+            + ([f"{brew_prefix()}/bin"] if brew_prefix() else [])
+            + ["/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+        )
         LAUNCH_AGENT.parent.mkdir(parents=True, exist_ok=True)
         LAUNCH_AGENT.write_text(f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1264,9 +1451,11 @@ def cmd_uninstall(args) -> int:
 
 # ── entry point ─────────────────────────────────────────────────────────────
 
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        prog="unienv", formatter_class=argparse.RawDescriptionHelpFormatter,
+        prog="unienv",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         description="UniEnv AI: one always-ready environment for every AI tool.",
         epilog="""examples:
   unienv                      status overview
@@ -1275,7 +1464,8 @@ def main(argv: list[str] | None = None) -> int:
   unienv need --bin ffmpeg    add a system tool (Homebrew formula / apt package)
   unienv install --add media  enable an opt-in battery
 
-docs: https://github.com/rupeshbharambe24/unienv-ai""")
+docs: https://github.com/rupeshbharambe24/unienv-ai""",
+    )
     p.add_argument("--version", action="version", version=f"unienv {VERSION}")
     sub = p.add_subparsers(dest="cmd")
     p.set_defaults(fn=cmd_status)
@@ -1331,8 +1521,12 @@ docs: https://github.com/rupeshbharambe24/unienv-ai""")
 
     s = sub.add_parser("mcp", help="MCP server for desktop apps: serve (default), install, uninstall, config")
     s.add_argument("action", nargs="?", default="serve", choices=["serve", "install", "uninstall", "config"])
-    s.add_argument("--client", default="claude-desktop", choices=["claude-desktop", "cursor", "all"],
-                   help="which app to configure (default: claude-desktop)")
+    s.add_argument(
+        "--client",
+        default="claude-desktop",
+        choices=["claude-desktop", "cursor", "all"],
+        help="which app to configure (default: claude-desktop)",
+    )
     s.set_defaults(fn=cmd_mcp)
 
     s = sub.add_parser("path", help="print the UniEnv bin directory")

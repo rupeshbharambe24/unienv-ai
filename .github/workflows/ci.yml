@@ -6,6 +6,25 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install ruff
+        run: pip install --quiet ruff
+
+      - name: ruff check
+        run: ruff check src tests
+
+      - name: ruff format
+        run: ruff format --check src tests
+
+      - name: shellcheck
+        # shellcheck is preinstalled on ubuntu-latest
+        run: shellcheck install.sh shims/* mcpb/server/*.sh scripts/*.sh bench/*.sh tests/*.sh
+
   test:
     strategy:
       fail-fast: false

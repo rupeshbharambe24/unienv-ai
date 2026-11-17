@@ -39,6 +39,7 @@ clean_env() {
 }
 
 snapshot() {  # packages an agent might install outside a venv
+  # shellcheck disable=SC2012  # ls only snapshots a sorted listing
   {
     echo "## brew-python"; /opt/homebrew/bin/python3 -m pip list --format=freeze 2>/dev/null | sort
     echo "## user-site"; ls "$(/opt/homebrew/bin/python3 -m site --user-site 2>/dev/null)" 2>/dev/null | sort

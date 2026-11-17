@@ -1,0 +1,9 @@
+# Ruff configuration (CI: .github/workflows/ci.yml, "lint" job)
+line-length = 120
+target-version = "py311"
+
+[lint]
+# Ruff stable defaults (pycodestyle E, pyflakes F). E501 is left to `ruff format`;
+# the remaining long lines are strings/comments it cannot wrap.
+select = ["E", "F"]
+ignore = ["E501"]
