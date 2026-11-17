@@ -30,7 +30,8 @@ The CLI (`src/unienv.py`) uses **only the Python standard library** (3.11+). Kee
 Recipes declare **what** to install, never **how**: there are no install scripts. That keeps them reviewable and safe. Create `recipes/<id>.toml`:
 
 ```toml
-#:schema ../schema/recipe.schema.json  # editor autocomplete + validation (Taplo / Even Better TOML)
+#:schema ../schema/recipe.schema.json
+# ^ editor autocomplete + validation (Taplo / Even Better TOML); keep it on its own line
 schema = "unienv/recipe/v0"
 id = "latex"                          # must match the file name
 summary = "Compile LaTeX documents to PDF"

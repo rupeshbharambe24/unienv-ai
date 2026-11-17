@@ -4,6 +4,10 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+- Lint job in CI: `ruff check`, `ruff format --check` and shellcheck on every PR. By @sanjanamg0 in #53. (#43)
+- JSON Schema for recipes (`schema/recipe.schema.json`), validated in CI, with editor autocomplete via a `#:schema` line. By @sanjanamg0 in #54. (#11)
+
 ## [0.2.1] - 2026-11-17
 
 First release with community contributions. Thank you @bfs2021, @SantanDon and @CyberKun!
