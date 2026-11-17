@@ -4,6 +4,24 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-17
+
+First release with community contributions. Thank you @bfs2021, @SantanDon and @CyberKun!
+
+### Security
+- MCP `install_package` rejects package names that smuggle in CLI flags (`"pandas -y"`, `"x --cask y"`) and passes names after `--`. (#14)
+
+### Fixed
+- `unienv uninstall` removes the `unienv` server from Claude Desktop and Cursor MCP configs (other servers untouched, backup kept). (#13)
+- Commands that change `~/.unienv` take a lock, so parallel `unienv need` calls are safe; state, manifest, `env.sh` and `AGENTS.md` are written atomically; a corrupt `state.json` recovers from the newest backup. (#21)
+- MCP PDF → PNG renders into a fresh `<name>-pages` folder and lists only that call's pages. (#15)
+- `unienv doctor --json --fix` prints a single JSON document, and `--fix` only syncs when sync can repair something. By @CyberKun. (#17, #49)
+- `unienv install --add` rejects unknown batteries with a "did you mean" hint. By @bfs2021. (#19, #47)
+
+### Added
+- Unit test suite in `tests/unit/`, run in CI. By @SantanDon. (#42, #48)
+- CI checks for parallel `need`, `doctor --json --fix`, MCP flag injection and repeated PDF renders.
+
 ## [0.2.0] - 2026-10-28
 
 ### Added

@@ -24,7 +24,7 @@ import time
 import tomllib
 from pathlib import Path
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 PY_VERSION = "3.12"
 
 HOME = Path.home()
