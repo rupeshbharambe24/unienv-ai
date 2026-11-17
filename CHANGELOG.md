@@ -8,6 +8,9 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 - Lint job in CI: `ruff check`, `ruff format --check` and shellcheck on every PR. By @sanjanamg0 in #53. (#43)
 - JSON Schema for recipes (`schema/recipe.schema.json`), validated in CI, with editor autocomplete via a `#:schema` line. By @sanjanamg0 in #54. (#11)
 
+### Docs
+- README, CONTRIBUTING, ROADMAP and docs brought up to date for 0.2.1: how to run every CI check locally, the locking behaviour, new troubleshooting entries, and a contributors list.
+
 ## [0.2.1] - 2026-11-17
 
 First release with community contributions. Thank you @bfs2021, @SantanDon and @CyberKun!
@@ -60,6 +63,7 @@ First public prototype.
 - Login bash on Linux skipped `~/.profile` when `~/.bash_profile` exists; both are now wired.
 - Homebrew's automatic `brew cleanup` no longer runs as a side effect of UniEnv installs.
 
-[Unreleased]: https://github.com/rupeshbharambe24/unienv-ai/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/rupeshbharambe24/unienv-ai/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.2.1
 [0.2.0]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.2.0
 [0.1.0]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.1.0

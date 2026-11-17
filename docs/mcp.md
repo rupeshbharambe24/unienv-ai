@@ -6,12 +6,12 @@ Terminal agents (Claude Code, Codex, Gemini CLI…) use UniEnv directly through 
 |---|---|---|
 | `unienv_capabilities` | Lists installed tools and packages, with usage notes | no |
 | `read_document` | Word, Excel, PowerPoint, PDF, HTML, CSV, images (OCR) → text | no |
-| `convert_document` | docx/xlsx/pptx/md/html → pdf, md → docx, doc → docx, docx → md, pdf → txt/png … (never overwrites) | creates new files |
+| `convert_document` | docx/xlsx/pptx/md/html → pdf, md → docx, doc → docx, docx → md, pdf → txt/png … (never overwrites; PDF pages go into a new `<name>-pages` folder) | creates new files |
 | `run_python` | Runs a Python 3.12 script with python-docx, openpyxl, python-pptx, pandas, matplotlib … | yes |
 | `run_tool` | Runs an allow-listed UniEnv tool (pandoc, soffice-safe, pdftotext, qpdf, tesseract, ue-node …), no shell | yes |
 | `install_package` | `unienv need`: permanently add a package for every AI tool | installs software |
 
-Each tool declares MCP safety hints (read-only vs. can change files), so apps like Claude Desktop can ask your permission accordingly.
+Each tool declares MCP safety hints (read-only vs. can change files), so apps like Claude Desktop can ask your permission accordingly. `install_package` only accepts real package names (no flags or shell characters), so the `kind` you approve is the kind that gets installed.
 
 ## Set it up
 
@@ -76,3 +76,5 @@ New files go to **`~/UniEnv`** unless you or Claude give another path (override 
 ```sh
 unienv mcp uninstall --client all
 ```
+
+`unienv uninstall` also removes the `unienv` entry from every app's config (other servers are left alone, and a backup is kept). If you installed the `.mcpb` extension, remove it in *Claude → Settings → Extensions*.

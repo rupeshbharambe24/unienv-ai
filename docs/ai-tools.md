@@ -11,7 +11,7 @@ UniEnv reaches AI tools in two ways:
 | **Codex CLI** | `$CODEX_HOME/AGENTS.md` (default `~/.codex/AGENTS.md`) | `~/.codex/skills/unienv/SKILL.md` | `~/.codex/` or `codex` |
 | **Gemini CLI** | `~/.gemini/GEMINI.md` | none | `~/.gemini/` or `gemini` |
 | **OpenCode** | `~/.config/opencode/AGENTS.md` | none | `~/.config/opencode/` or `opencode` |
-| **Cursor** | paste `~/.unienv/AGENTS.md` into *Settings → Rules → User Rules* | none | manual for now |
+| **Cursor** | paste `~/.unienv/AGENTS.md` into *Settings → Rules → User Rules*; MCP tools via `unienv mcp install --client cursor` | none | manual for now ([#4](https://github.com/rupeshbharambe24/unienv-ai/issues/4)) |
 | **Windsurf, Cline, Roo, Copilot, Aider** | paste `~/.unienv/AGENTS.md` into the tool's global rules | none | adapters planned, help wanted |
 | **Claude Desktop chat** | **UniEnv MCP server**: `unienv mcp install` or the `.mcpb` extension ([guide](mcp.md)) | n/a | config file |
 | **LM Studio, other MCP apps** | MCP server via `unienv mcp config` | n/a | manual |

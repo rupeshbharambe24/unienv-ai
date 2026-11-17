@@ -77,7 +77,7 @@ Agents run every command in a fresh `zsh -c` / `bash -lc`, which skips your `.zs
 <td valign="top">
 
 **♻️ Grows instead of resetting**<br>
-`unienv need <pkg>` installs permanently for every tool, takes about 2 s with a warm cache, and rolls back automatically if anything breaks.
+`unienv need <pkg>` installs permanently for every tool, takes about 2 s with a warm cache, and rolls back automatically if anything breaks. It is safe when several agents run it at the same time.
 
 </td>
 </tr>
@@ -91,7 +91,7 @@ Agents run every command in a fresh `zsh -c` / `bash -lc`, which skips your `.zs
 <td valign="top">
 
 **🧹 Never in your way**<br>
-No `python`/`node` shadowing (only namespaced `ue-*` commands), project envs come first, no Docker, no telemetry, and `unienv uninstall` removes every line it wrote.
+No `python`/`node` shadowing (only namespaced `ue-*` commands), project envs come first, no Docker, no telemetry, and `unienv uninstall` removes every line it wrote, including its MCP entries.
 
 </td>
 </tr>
@@ -184,7 +184,7 @@ Details: [How it works](docs/how-it-works.md) · [AI tool integrations](docs/ai-
 | `unienv update` | Download the latest UniEnv and re-install |
 | `unienv wire [--gui]` | Rewrite shell blocks; `--gui` (experimental, macOS) sets the PATH desktop apps see |
 | `unienv mcp install [--client …]` | Connect Claude Desktop / Cursor / other MCP apps ([guide](docs/mcp.md)) |
-| `unienv uninstall [--purge]` | Remove everything UniEnv wrote; `--purge` also deletes `~/.unienv` |
+| `unienv uninstall [--purge]` | Remove everything UniEnv wrote (shell lines, agent blocks, MCP entries); `--purge` also deletes `~/.unienv` |
 
 `ue` is a short alias for `unienv`.
 
@@ -196,7 +196,8 @@ Details: [How it works](docs/how-it-works.md) · [AI tool integrations](docs/ai-
 | Codex CLI | ✅ instructions + skill + shell |
 | Gemini CLI | ✅ instructions + shell |
 | OpenCode | ✅ instructions + shell |
-| Cursor, Windsurf, Cline, Roo, Copilot, Aider | ◐ shell works; paste `~/.unienv/AGENTS.md` into user rules. [Adapters wanted](https://github.com/rupeshbharambe24/unienv-ai/labels/adapter) |
+| Cursor | ◐ shell works, MCP via `unienv mcp install --client cursor`; paste `~/.unienv/AGENTS.md` into User Rules ([adapter wanted](https://github.com/rupeshbharambe24/unienv-ai/issues/4)) |
+| Windsurf, Cline, Roo, Copilot, Aider | ◐ shell works; paste `~/.unienv/AGENTS.md` into user rules. [Adapters wanted](https://github.com/rupeshbharambe24/unienv-ai/labels/adapter) |
 | **Claude Desktop chat** | ✅ via the UniEnv MCP server: `unienv mcp install` or the one-click `.mcpb` extension ([guide](docs/mcp.md)) |
 | LM Studio & other MCP apps | ✅ via MCP: `unienv mcp config` prints the snippet |
 | Claude.ai / ChatGPT on the web, Cowork | ❌ they run in the cloud or a VM and can't reach your computer |
@@ -236,7 +237,7 @@ It installs from the same public registries an agent would use anyway (PyPI, npm
 <details>
 <summary><b>Windows?</b></summary>
 
-Not yet: Windows (winget/Scoop) and WSL are planned for 1.0. Help is very welcome.
+Not yet: Windows (winget/Scoop) and WSL are planned for 1.0 ([#8](https://github.com/rupeshbharambe24/unienv-ai/issues/8)). Help is very welcome.
 </details>
 
 ## 🧪 Measured
@@ -267,9 +268,14 @@ UniEnv is built to be extended by the community. The best first contributions:
 - 🔋 **A new battery**: one TOML file, no code ([guide](CONTRIBUTING.md#writing-a-recipe))
 - 🤖 **An adapter** for another AI tool ([guide](CONTRIBUTING.md#writing-an-agent-adapter))
 - 🐧 **Linux/Windows backends**
-- 🐛 **Bug reports** with `unienv doctor --json`
+- 🐛 **Bug fixes**: many open bugs come with a reproduction and a suggested fix
+- 🩺 **Bug reports** with `unienv doctor --json`
 
-Look for [`good first issue`](https://github.com/rupeshbharambe24/unienv-ai/labels/good%20first%20issue), read [CONTRIBUTING.md](CONTRIBUTING.md), and say hi in [Discussions](https://github.com/rupeshbharambe24/unienv-ai/discussions). If UniEnv saves you time, a ⭐ helps others find it.
+Look for [`good first issue`](https://github.com/rupeshbharambe24/unienv-ai/labels/good%20first%20issue), read [CONTRIBUTING.md](CONTRIBUTING.md), and say hi in [Discussions](https://github.com/rupeshbharambe24/unienv-ai/discussions). Every PR is checked automatically (lint, recipe schema, unit tests, and install + smoke tests on macOS and Linux), so you get feedback fast. If UniEnv saves you time, a ⭐ helps others find it.
+
+### Contributors
+
+Thank you to everyone who has helped build UniEnv AI: [@bfs2021](https://github.com/bfs2021), [@SantanDon](https://github.com/SantanDon), [@CyberKun](https://github.com/CyberKun) and [@sanjanamg0](https://github.com/sanjanamg0). Want to see your name here? Pick an [issue](https://github.com/rupeshbharambe24/unienv-ai/labels/good%20first%20issue).
 
 ## License
 

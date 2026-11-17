@@ -35,7 +35,15 @@ fi
 
 - `need` re-resolves the shared env with uv. With a warm cache it takes about 2 seconds, but on a slow network it waits for PyPI. Set `UV_HTTP_TIMEOUT=120` if your connection is flaky.
 - A failed `need` rolls back automatically. Check `~/.unienv/log/unienv.log`.
-- Behind a corporate proxy, uv and npm need `HTTPS_PROXY` plus your CA certificate (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`).
+- Behind a corporate proxy, uv and npm need `HTTPS_PROXY` plus your CA certificate (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`). Known issue: MCP tools don't pass these on yet ([#68](https://github.com/rupeshbharambe24/unienv-ai/issues/68)), so run `unienv need` from a terminal instead.
+- `waiting for another unienv command to finish…` means another agent is running `unienv need` (or `sync`) right now. It continues by itself when that one finishes.
+- `…/state.json is corrupt; using the backup …` means the file was damaged (for example by a crash mid-write in an older version), and UniEnv used the newest backup from `~/.unienv/backups/` instead. Your next `unienv install` or `unienv need` saves a fresh copy; run `unienv doctor` to check everything is in place.
+
+## Claude Desktop shows "server failed" or old tools
+
+- After `unienv update`, quit Claude Desktop fully (⌘Q) and reopen it, so it starts the new server.
+- `unienv doctor` performs a real MCP handshake and shows whether the server answers.
+- If you also installed the `.mcpb` extension, remove one of the two (see [MCP guide](mcp.md#option-b-claude-desktop-extension-one-click)).
 
 ## LibreOffice
 
@@ -50,7 +58,7 @@ Tesseract's image library rewrites paths starting with `/tmp`. UniEnv's `env.sh`
 ## Undo everything
 
 ```sh
-unienv uninstall           # remove every block UniEnv wrote
+unienv uninstall           # remove every block UniEnv wrote, and its MCP entries
 unienv uninstall --purge   # ...and delete ~/.unienv
 ```
 

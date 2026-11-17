@@ -13,9 +13,11 @@
 
 ## Checklist
 
-- [ ] `python3 -m py_compile src/unienv.py` passes, and the CLI still uses only the standard library
-- [ ] `unienv doctor` passes on my machine (OS: ______)
-- [ ] `tests/smoke.sh` passes (or the new battery adds its own check)
+- [ ] The CLI still uses only the Python standard library
+- [ ] `python3 -m unittest discover -s tests/unit` passes (bug fixes: with a test that fails before the fix)
+- [ ] `ruff check src tests` and `ruff format --check src tests` pass (ruff 0.17.5)
+- [ ] For recipes: `python3 scripts/validate_recipes.py` passes
+- [ ] `unienv doctor` and `tests/smoke.sh` pass on my machine (OS: ______)
 - [ ] For recipes: exact agent commands in `[agent].notes`, `license_note` filled in, big downloads are `default = false`
 - [ ] For adapters: links to official docs for every path
-- [ ] README tables / CHANGELOG updated if user-facing
+- [ ] README tables / CHANGELOG `[Unreleased]` updated if user-facing
