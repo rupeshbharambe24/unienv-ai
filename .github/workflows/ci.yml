@@ -25,6 +25,17 @@ jobs:
         # shellcheck is preinstalled on ubuntu-latest
         run: shellcheck install.sh shims/* mcpb/server/*.sh scripts/*.sh bench/*.sh tests/*.sh
 
+  recipes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate recipes against schema/recipe.schema.json
+        run: |
+          pip install --quiet jsonschema
+          python3 scripts/validate_recipes.py
+
   test:
     strategy:
       fail-fast: false

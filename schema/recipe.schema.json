@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/rupeshbharambe24/unienv-ai/main/schema/recipe.schema.json",
+  "title": "UniEnv recipe (unienv/recipe/v0)",
+  "description": "A battery: a declarative list of what to install. Recipes never contain install scripts. See CONTRIBUTING.md#writing-a-recipe.",
+  "type": "object",
+  "required": ["schema", "id", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "unienv/recipe/v0",
+      "description": "Schema version. Must be exactly \"unienv/recipe/v0\"."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "description": "Battery name. Must match the file name (recipes/<id>.toml)."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One line saying what agents can do once this battery is installed. Note downloads over 100 MB."
+    },
+    "default": {
+      "type": "boolean",
+      "description": "Installed by default. Leave false (opt-in) unless almost everyone needs it."
+    },
+    "always": {
+      "type": "boolean",
+      "description": "Always installed and cannot be excluded (used by the core battery)."
+    },
+    "maintainers": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^github:[A-Za-z0-9-]+$" },
+      "description": "GitHub handles, e.g. \"github:your-handle\"."
+    },
+    "license_note": {
+      "type": "string",
+      "description": "Licenses of the tools this recipe installs."
+    },
+    "python": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "PyPI packages installed for ue-py.",
+      "properties": {
+        "packages": { "$ref": "#/$defs/stringList", "description": "pip requirement specifiers, e.g. \"openpyxl>=3.1\"." },
+        "imports": { "$ref": "#/$defs/stringList", "description": "Modules `unienv doctor` imports to verify the install." }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "npm packages installed for ue-node.",
+      "properties": {
+        "packages": { "$ref": "#/$defs/stringList", "description": "npm package names." },
+        "modules": { "$ref": "#/$defs/stringList", "description": "Modules `unienv doctor` requires to verify the install." }
+      }
+    },
+    "system": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "System packages, per platform.",
+      "properties": {
+        "macos": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Homebrew.",
+          "properties": {
+            "brew": { "$ref": "#/$defs/stringList", "description": "Homebrew formulae." },
+            "cask": { "$ref": "#/$defs/stringList", "description": "Homebrew casks." }
+          }
+        },
+        "debian": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "apt.",
+          "properties": {
+            "apt": { "$ref": "#/$defs/stringList", "description": "apt packages." }
+          }
+        }
+      }
+    },
+    "verify": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What `unienv doctor` checks.",
+      "properties": {
+        "bins": { "$ref": "#/$defs/stringList", "description": "Commands that must be found on PATH." },
+        "provided_by": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Maps a binary to the system package that provides it, so `--exclude <pkg>` skips its check."
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Rendered into the unienv skill for every agent.",
+      "properties": {
+        "notes": {
+          "type": "string",
+          "description": "Markdown bullets with exact, copy-pasteable commands and pitfalls."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "stringList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

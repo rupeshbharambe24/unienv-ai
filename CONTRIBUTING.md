@@ -30,6 +30,7 @@ The CLI (`src/unienv.py`) uses **only the Python standard library** (3.11+). Kee
 Recipes declare **what** to install, never **how**: there are no install scripts. That keeps them reviewable and safe. Create `recipes/<id>.toml`:
 
 ```toml
+#:schema ../schema/recipe.schema.json  # editor autocomplete + validation (Taplo / Even Better TOML)
 schema = "unienv/recipe/v0"
 id = "latex"                          # must match the file name
 summary = "Compile LaTeX documents to PDF"
@@ -61,8 +62,15 @@ notes = """
 """
 ```
 
+The format is described by [`schema/recipe.schema.json`](schema/recipe.schema.json). The `#:schema` line on top makes editors with [Taplo](https://taplo.tamasfe.com/) (VS Code "Even Better TOML", Zed, Neovim) autocomplete keys and flag typos as you type. CI validates every recipe against it; run the same check locally with:
+
+```sh
+pip install jsonschema && python3 scripts/validate_recipes.py
+```
+
 Checklist for a recipe PR:
 
+- [ ] `python3 scripts/validate_recipes.py` passes.
 - [ ] `id` matches the file name and the `summary` says what agents can now do.
 - [ ] Packages are widely used and maintained. Pin a minimum version only when an older one is known to break.
 - [ ] `[verify]` lists the binaries, and `[python].imports` the modules, that prove the battery works.

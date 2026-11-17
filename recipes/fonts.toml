@@ -1,3 +1,4 @@
+#:schema ../schema/recipe.schema.json
 schema = "unienv/recipe/v0"
 id = "fonts"
 summary = "Metric-compatible Office fonts and CJK fonts so LibreOffice renders match Word (opt-in)"

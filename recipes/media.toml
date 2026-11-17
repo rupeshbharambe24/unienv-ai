@@ -1,3 +1,4 @@
+#:schema ../schema/recipe.schema.json
 schema = "unienv/recipe/v0"
 id = "media"
 summary = "Convert and edit audio, video and images (opt-in: ~250 MB)"
