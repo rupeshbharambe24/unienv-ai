@@ -66,4 +66,5 @@ Only marked blocks, removed by `unienv uninstall`:
 - `~/.zshenv`, `~/.profile`, and `~/.bashrc`, `~/.bash_profile`, `~/.bash_login` if they exist: one line, `[ -f ~/.unienv/env.sh ] && . ~/.unienv/env.sh`
 - Agent instruction files for detected tools, between `<!-- >>> unienv … >>> -->` markers
 - `skills/unienv/SKILL.md` for Claude Code and Codex
+- With `unienv mcp install` only: the `unienv` entry under `mcpServers` in Claude Desktop's and Cursor's config (other servers are never touched; a timestamped backup is kept)
 - With `unienv wire --gui` only: `~/Library/LaunchAgents/ai.unienv.path.plist`

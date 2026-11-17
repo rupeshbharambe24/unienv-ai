@@ -40,6 +40,12 @@ msgs = [
     {"jsonrpc": "2.0", "id": 10, "method": "tools/call", "params": {"name": "nope", "arguments": {}}},
     {"jsonrpc": "2.0", "id": 11, "method": "initialize",
      "params": {"protocolVersion": "1999-01-01", "capabilities": {}, "clientInfo": {"name": "old", "version": "1"}}},
+    call(13, "install_package", {"name": "pandas -y", "kind": "python"}),
+    call(14, "install_package", {"name": "seaborn --cask evil", "kind": "python"}),
+    call(15, "run_python", {"code": "from reportlab.pdfgen import canvas\nc = canvas.Canvas('two.pdf')\n"
+                                    "for t in ('one', 'two'):\n    c.drawString(100, 750, t); c.showPage()\nc.save()"}),
+    call(16, "convert_document", {"input_path": "two.pdf", "output_format": "png"}),
+    call(17, "convert_document", {"input_path": "two.pdf", "output_format": "png"}),
 ]
 if HAS_SOFFICE:
     msgs.append(call(12, "convert_document", {"input_path": "t.docx", "output_format": "pdf"}))
@@ -85,6 +91,12 @@ check("run_tool refuses non-UniEnv tools", is_error(7) and "not a UniEnv tool" i
 check("run_python reports failures as tool errors", is_error(8) and "exit code: 3" in text(8))
 check("install_package rejects shell metacharacters", is_error(9) and "invalid package name" in text(9))
 check("unknown tool is a JSON-RPC error", replies[10].get("error", {}).get("code") == -32602)
+check("install_package rejects smuggled flags (-y)", is_error(13) and "invalid package name" in text(13))
+check("install_package rejects smuggled flags (--cask)", is_error(14) and "invalid package name" in text(14))
+renders = sorted(WORK.glob("two-pages*"))
+check("pdf → png twice keeps both renders", not is_error(16) and not is_error(17) and len(renders) == 2
+      and all(len(list(r.glob("*.png"))) == 2 for r in renders))
+check("pdf → png lists only this call's pages", text(16) != text(17) and text(17).count(".png") == 2)
 if HAS_SOFFICE:
     check("convert_document docx → pdf via LibreOffice", not is_error(12) and (WORK / "t.pdf").exists())
 else:

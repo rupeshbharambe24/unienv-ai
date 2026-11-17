@@ -11,6 +11,7 @@ environment it manages is broken. Run `unienv --help`.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as _dt
 import json
 import os
@@ -209,6 +210,31 @@ def remove_block(path: Path, begin: str, end: str) -> bool:
     return True
 
 
+def atomic_write(path: Path, text: str) -> None:
+    """Write via a temp file + rename, so readers (agents, shells) never see a half-written file."""
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)
+
+
+@contextlib.contextmanager
+def state_lock():
+    """Serialise commands that change ~/.unienv: parallel agents often run `unienv need` at once."""
+    try:
+        import fcntl
+    except ImportError:  # no flock (Windows): run unlocked
+        yield
+        return
+    UNIENV_HOME.mkdir(parents=True, exist_ok=True)
+    with open(UNIENV_HOME / ".lock", "w") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("waiting for another unienv command to finish…", file=sys.stderr, flush=True)
+            fcntl.flock(f, fcntl.LOCK_EX)
+        yield  # released when the file is closed
+
+
 def read_block(path: Path, begin: str, end: str) -> str | None:
     if not path.exists():
         return None
@@ -258,7 +284,12 @@ def default_state(recipes: dict) -> dict:
 def load_state(recipes: dict) -> dict:
     state = default_state(recipes)
     if STATE_FILE.exists():
-        saved = json.loads(STATE_FILE.read_text())
+        try:
+            saved = json.loads(STATE_FILE.read_text())
+        except json.JSONDecodeError:
+            backups = sorted(BACKUP_DIR.glob("*/*__state.json"))
+            warn(f"{STATE_FILE} is corrupt; " + (f"using the backup {backups[-1]}" if backups else "using defaults"))
+            saved = json.loads(backups[-1].read_text()) if backups else {}
         state.update({k: v for k, v in saved.items() if k in state and k != "options"})
         state["options"].update(saved.get("options", {}))
         for k in default_state(recipes)["extras"]:
@@ -269,7 +300,7 @@ def load_state(recipes: dict) -> dict:
 def save_state(state: dict) -> None:
     UNIENV_HOME.mkdir(parents=True, exist_ok=True)
     state["version"] = VERSION
-    STATE_FILE.write_text(json.dumps(state, indent=2) + "\n")
+    atomic_write(STATE_FILE, json.dumps(state, indent=2) + "\n")
 
 
 def active_recipes(recipes: dict, state: dict) -> list[dict]:
@@ -478,7 +509,7 @@ def write_env_sh(state: dict) -> None:
         'case $- in *i*) ;; *) export GIT_PAGER="${GIT_PAGER:-cat}" PAGER="${PAGER:-cat}" ;; esac',
         "",
     ]
-    ENV_SH.write_text("\n".join(lines))
+    atomic_write(ENV_SH, "\n".join(lines))
 
 
 def python_packages() -> dict[str, str]:
@@ -518,7 +549,7 @@ def write_manifest(recipes: list[dict], state: dict, w: dict) -> dict:
         "bins": {b: resolve_bin(b) for b in w["bins"]},
         "extras": state["extras"],
     }
-    MANIFEST_FILE.write_text(json.dumps(manifest, indent=2) + "\n")
+    atomic_write(MANIFEST_FILE, json.dumps(manifest, indent=2) + "\n")
     return manifest
 
 
@@ -571,7 +602,7 @@ def detected(agent: dict) -> bool:
 def sync_agents(manifest: dict, recipes: list[dict], *, only_detected: bool = True) -> list[str]:
     block = render_agent_block(manifest)
     skill = render_skill(manifest, recipes)
-    AGENTS_COPY.write_text(block)  # canonical copy, e.g. to paste into Cursor's User Rules
+    atomic_write(AGENTS_COPY, block)  # canonical copy, e.g. to paste into Cursor's User Rules
     done = []
     for a in agent_targets():
         if only_detected and not detected(a):
@@ -849,6 +880,29 @@ def _load_json(path: Path) -> dict:
         die(f"{path} is not valid JSON; fix it first (UniEnv won't overwrite it).")
 
 
+def mcp_set(path: Path, entry: dict | None) -> bool:
+    """Add (entry) or remove (None) the unienv server in an MCP client config, keeping a backup.
+
+    Other servers are never touched. Returns True if the file changed.
+    """
+    if entry is None and not path.exists():
+        return False
+    data = _load_json(path)
+    servers = data.setdefault("mcpServers", {})
+    if servers.get("unienv") == entry:
+        return False
+    if entry is None:
+        servers.pop("unienv")
+    else:
+        servers["unienv"] = entry
+    if path.exists():
+        backup = path.with_name(path.name + f".unienv-backup-{_dt.datetime.now():%Y%m%d-%H%M%S}")
+        shutil.copy2(path, backup)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2) + "\n")
+    return True
+
+
 def cmd_mcp(args) -> int:
     if args.action == "serve":
         sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -863,24 +917,11 @@ def cmd_mcp(args) -> int:
         path = clients[name]
         if args.action == "install" and name != "claude-desktop" and args.client == "all" and not path.parent.exists():
             continue  # only touch clients that are actually installed
-        data = _load_json(path)
-        servers = data.setdefault("mcpServers", {})
-        if args.action == "install":
-            if servers.get("unienv") == mcp_entry():
-                info(f"  ✓ {name}: already configured ({path})")
-                continue
-            servers["unienv"] = mcp_entry()
-        else:
-            if "unienv" not in servers:
-                continue
-            servers.pop("unienv")
-        if path.exists():
-            backup = path.with_name(path.name + f".unienv-backup-{_dt.datetime.now():%Y%m%d-%H%M%S}")
-            shutil.copy2(path, backup)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2) + "\n")
-        verb = "added to" if args.action == "install" else "removed from"
-        info(f"  ✓ unienv MCP server {verb} {name} ({path})")
+        if mcp_set(path, mcp_entry() if args.action == "install" else None):
+            verb = "added to" if args.action == "install" else "removed from"
+            info(f"  ✓ unienv MCP server {verb} {name} ({path})")
+        elif args.action == "install":
+            info(f"  ✓ {name}: already configured ({path})")
     if args.action == "install":
         info("\nRestart the app (quit it fully, then reopen) to load the UniEnv tools.")
         log_event(event="mcp-install", clients=targets)
@@ -1188,6 +1229,13 @@ def cmd_uninstall(args) -> int:
         if a["skills"] is not None and (a["skills"] / "unienv").exists():
             shutil.rmtree(a["skills"] / "unienv")
             info(f"  removed {a['skills'] / 'unienv'}")
+    # desktop apps would otherwise keep trying to start a server that no longer exists
+    for name, path in mcp_clients().items():
+        try:
+            if mcp_set(path, None):
+                info(f"  removed the unienv MCP server from {name} ({path})")
+        except SystemExit:  # invalid JSON: _load_json already explained; keep uninstalling
+            pass
     if LAUNCH_AGENT.exists():
         LAUNCH_AGENT.unlink()
         run(["launchctl", "unsetenv", "PATH"], check=False, quiet=True)
@@ -1276,8 +1324,10 @@ docs: https://github.com/rupeshbharambe24/unienv-ai""")
     s.set_defaults(fn=lambda a: print(BIN) or 0)
 
     args = p.parse_args(argv)
+    mutating = args.cmd in ("install", "need", "sync", "uninstall") or (args.cmd == "doctor" and args.fix)
     try:
-        return args.fn(args)
+        with state_lock() if mutating else contextlib.nullcontext():
+            return args.fn(args)
     except subprocess.CalledProcessError as e:
         die(f"command failed ({e.returncode}): {' '.join(map(str, e.cmd))}")
     except KeyboardInterrupt:

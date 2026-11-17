@@ -237,13 +237,17 @@ def t_convert_document(a: dict) -> str:
                 raise ToolError(f"pdftotext failed: {err.strip()[:500]}")
             return f"Converted to {dest}"
         if fmt in ("png", "jpg", "jpeg"):
-            prefix = free_name(out_dir / src.stem)
-            code, _, err, _ = run(["pdftoppm", f"-{'png' if fmt == 'png' else 'jpeg'}", "-r", "110", str(src), str(prefix)],
-                                  cwd=src.parent, timeout=300)
-            if code != 0:
-                raise ToolError(f"pdftoppm failed: {err.strip()[:500]}")
-            pages = sorted(out_dir.glob(f"{prefix.name}-*.{'png' if fmt == 'png' else 'jpg'}"))
-            return "Rendered pages:\n" + "\n".join(str(p) for p in pages)
+            # render into a scratch folder, then move the pages into a fresh <stem>-pages folder,
+            # so earlier renders are never overwritten and only this call's pages are listed
+            with tempfile.TemporaryDirectory(dir=tool_env()["TMPDIR"]) as tmp:
+                code, _, err, _ = run(["pdftoppm", f"-{'png' if fmt == 'png' else 'jpeg'}", "-r", "110",
+                                       str(src), str(Path(tmp) / src.stem)], cwd=src.parent, timeout=300)
+                if code != 0:
+                    raise ToolError(f"pdftoppm failed: {err.strip()[:500]}")
+                pages_dir = free_name(out_dir / f"{src.stem}-pages")
+                pages_dir.mkdir()
+                pages = [Path(shutil.move(p, pages_dir / p.name)) for p in sorted(Path(tmp).iterdir())]
+            return f"Rendered {len(pages)} page(s) into {pages_dir}:\n" + "\n".join(str(p) for p in pages)
         raise ToolError("PDF can be converted to txt, png or jpg. To get editable text, use read_document.")
 
     if fmt == "pdf":
@@ -303,10 +307,12 @@ def t_install_package(a: dict) -> str:
     flag = {"python": [], "node": ["--node"], "brew": ["--bin"], "cask": ["--cask"]}.get(kind)
     if flag is None:
         raise ToolError("kind must be one of: python, node, brew, cask")
-    name = a["name"].strip()
-    if not re.fullmatch(r"[A-Za-z0-9@][A-Za-z0-9._\-/@\[\],<>=!~ ]*", name):
-        raise ToolError(f"invalid package name: {name!r}")
-    code, out, err, secs = run([str(BIN / "unienv"), "need", *flag, *name.split()], cwd=UNIENV_HOME, timeout=900)
+    names = a["name"].split()
+    # every token must look like a package spec: no leading "-", so a name can't smuggle in
+    # CLI flags such as -y (non-interactive sudo) or --cask (a different kind than approved)
+    if not names or not all(re.fullmatch(r"[A-Za-z0-9@][A-Za-z0-9._\-/@\[\],<>=!~]*", n) for n in names):
+        raise ToolError(f"invalid package name: {a['name']!r}")
+    code, out, err, secs = run([str(BIN / "unienv"), "need", *flag, "--", *names], cwd=UNIENV_HOME, timeout=900)
     text = (out + ("\n" + err if err.strip() else "")).strip()
     if code != 0:
         raise ToolError(cap(text or f"install failed (exit {code})", 4000))
@@ -354,8 +360,9 @@ TOOLS = [
         "name": "convert_document",
         "title": "Convert a document",
         "description": "Convert a local file to another format and save it next to the original (or in output_dir). "
-                       "Examples: docx/xlsx/pptx/md/html → pdf, md/html → docx, doc → docx, docx → md, pdf → txt/png. "
-                       "Never overwrites: adds -1, -2 … to the name if needed. Returns the new file's path.",
+                       "Examples: docx/xlsx/pptx/md/html → pdf, md/html → docx, doc → docx, docx → md, pdf → txt/png "
+                       "(pages go into a new <name>-pages folder). Never overwrites: adds -1, -2 … to the name if "
+                       "needed. Returns the new file's path.",
         "inputSchema": {"type": "object", "required": ["input_path", "output_format"], "additionalProperties": False,
                         "properties": {
                             "input_path": {"type": "string"},

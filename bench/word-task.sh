@@ -49,12 +49,19 @@ snapshot() {  # packages an agent might install outside a venv
 restore() {
   if [ "$MODE" = baseline ]; then
     echo "==> Restoring UniEnv wiring"
-    "$UE" sync >/dev/null && "$UE" doctor | tail -1
+    "$UE" sync >/dev/null
+    for c in $MCP_RESTORE; do "$UE" mcp install --client "$c" >/dev/null; done
+    "$UE" doctor | tail -1
   fi
 }
 
 if [ "$MODE" = baseline ]; then
   echo "==> Temporarily un-wiring UniEnv (restored automatically)"
+  # uninstall also removes the MCP entry from desktop apps; remember which to put back
+  MCP_RESTORE=""
+  grep -qs '"unienv"' "$HOME/Library/Application Support/Claude/claude_desktop_config.json" \
+    "$HOME/.config/Claude/claude_desktop_config.json" && MCP_RESTORE="claude-desktop"
+  grep -qs '"unienv"' "$HOME/.cursor/mcp.json" && MCP_RESTORE="$MCP_RESTORE cursor"
   trap restore EXIT
   "$UE" uninstall >/dev/null
   snapshot "$WORK_ROOT/before.txt"

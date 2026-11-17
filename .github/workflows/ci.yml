@@ -56,7 +56,11 @@ jobs:
 
       - name: need + rollback
         run: |
-          ~/.unienv/bin/unienv need tomli-w
-          ~/.unienv/bin/ue-py -c "import tomli_w"
+          # two agents adding packages at the same time: both must end up installed
+          ~/.unienv/bin/unienv need tomli-w & a=$!
+          ~/.unienv/bin/unienv need six & b=$!
+          wait $a; wait $b
+          ~/.unienv/bin/ue-py -c "import tomli_w, six"
+          jq -e '.extras.python | index("tomli-w") and index("six")' ~/.unienv/state.json
           ! ~/.unienv/bin/unienv need this-package-does-not-exist-unienv-ci
           ~/.unienv/bin/unienv doctor
