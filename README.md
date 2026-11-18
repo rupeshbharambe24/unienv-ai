@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/python-3.12-3776ab?logo=python&logoColor=white" alt="Python 3.12">
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue" alt="License"></a>
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome"></a>
+  <a href="https://github.com/rupeshbharambe24/unienv-ai/stargazers"><img src="https://img.shields.io/github/stars/rupeshbharambe24/unienv-ai?style=social" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
@@ -45,6 +46,8 @@ You ask your AI agent to *"fix the table in this Word file"* or *"summarise this
 ✓ soffice-safe --convert-to pdf report.docx
 ✓ ue need seaborn                        # missing? installed permanently, for everyone, in seconds
 ```
+
+> ⭐ **If UniEnv is useful to you, please [star the repo](https://github.com/rupeshbharambe24/unienv-ai/stargazers).** It's free, takes one click, and is the main way other people find the project.
 
 <p align="center">
   <img src="docs/assets/demo.svg" alt="Terminal showing unienv status and unienv doctor: all good" width="780">
@@ -271,7 +274,11 @@ UniEnv is built to be extended by the community. The best first contributions:
 - 🐛 **Bug fixes**: many open bugs come with a reproduction and a suggested fix
 - 🩺 **Bug reports** with `unienv doctor --json`
 
-Look for [`good first issue`](https://github.com/rupeshbharambe24/unienv-ai/labels/good%20first%20issue), read [CONTRIBUTING.md](CONTRIBUTING.md), and say hi in [Discussions](https://github.com/rupeshbharambe24/unienv-ai/discussions). Every PR is checked automatically (lint, recipe schema, unit tests, and install + smoke tests on macOS and Linux), so you get feedback fast. If UniEnv saves you time, a ⭐ helps others find it.
+Look for [`good first issue`](https://github.com/rupeshbharambe24/unienv-ai/labels/good%20first%20issue), read [CONTRIBUTING.md](CONTRIBUTING.md), and say hi in [Discussions](https://github.com/rupeshbharambe24/unienv-ai/discussions). Every PR is checked automatically (lint, recipe schema, unit tests, and install + smoke tests on macOS and Linux), so you get feedback fast.
+
+### ⭐ Support the project
+
+UniEnv is free and open source. If it saves you time, please **[give it a star on GitHub](https://github.com/rupeshbharambe24/unienv-ai)**. Stars are how other developers discover the project, and they keep it going. Sharing it with a friend or your team helps just as much.
 
 ### Contributors
 
