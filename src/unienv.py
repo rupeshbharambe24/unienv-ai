@@ -505,6 +505,10 @@ def write_package_json(packages: list[str]) -> None:
 
 def install_node(packages: list[str]) -> None:
     if not packages:
+        if (NODE_DIR / "package.json").exists():
+            write_package_json([])
+            shutil.rmtree(NODE_DIR / "node_modules", ignore_errors=True)
+            (NODE_DIR / "package-lock.json").unlink(missing_ok=True)
         return
     npm = which("npm")
     if not npm:
@@ -947,6 +951,108 @@ def cmd_need(args) -> int:
     log_event(event="need", kind=kind, packages=new, curated=not uncurated)
     via = {"python": "ue-py", "node": "ue-node"}.get(kind, "PATH")
     info(f"✓ installed {', '.join(new)}; available to every AI tool via {via}")
+    return 0
+
+
+def cmd_remove(args) -> int:
+    recipes_all = load_recipes()
+    state = load_state(recipes_all)
+    kind = "node" if args.node else "brew" if args.bin else "cask" if args.cask else "python"
+    if kind in ("brew", "cask") and platform_key() == "debian":
+        kind = "apt"
+    pkgs = args.packages
+    recipes = active_recipes(recipes_all, state)
+    pk = platform_key()
+    key = {"python": py_name, "node": node_name}.get(kind, lambda s: s)
+
+    extras_keys = {key(p) for p in state["extras"][kind]}
+    battery_owner: dict[str, str] = {}
+    for r in recipes:
+        r_pkgs = (
+            r.get(kind, {}).get("packages", [])
+            if kind in ("python", "node")
+            else r.get("system", {}).get(pk, {}).get(kind, [])
+        )
+        for p in r_pkgs:
+            battery_owner.setdefault(key(p), r["id"])
+
+    for p in pkgs:
+        k = key(p)
+        if k not in extras_keys:
+            if k in battery_owner:
+                bat = battery_owner[k]
+                if kind in ("brew", "cask", "apt"):
+                    warn(
+                        f"{p} is provided by the '{bat}' battery (not added with `unienv need`); "
+                        f"use `unienv install --exclude {p}` to skip it"
+                    )
+                else:
+                    warn(
+                        f"{p} is provided by the '{bat}' battery (not added with `unienv need`); "
+                        f"disable the battery with `unienv install --batteries ...` or `unienv install --exclude {p}`"
+                    )
+            else:
+                warn(f"{p} is not installed in extras ({kind})")
+            return 1
+
+    tracked = [
+        STATE_FILE,
+        PY_DIR / "pyproject.toml",
+        PY_DIR / "uv.lock",
+        NODE_DIR / "package.json",
+        NODE_DIR / "package-lock.json",
+    ]
+    existed = {f: f.exists() for f in tracked}
+    snap = BACKUP_DIR / _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    snap.mkdir(parents=True, exist_ok=True)
+    for f in tracked:
+        if existed[f]:
+            shutil.copy2(f, snap / f"{f.parent.name}__{f.name}")
+
+    remove_keys = {key(p) for p in pkgs}
+    removed = [p for p in state["extras"][kind] if key(p) in remove_keys]
+    state["extras"][kind] = [p for p in state["extras"][kind] if key(p) not in remove_keys]
+    w = wanted(recipes, state)
+    try:
+        if kind == "python":
+            install_python(w["python"])
+        elif kind == "node":
+            install_node(w["node"])
+        elif kind in ("brew", "cask"):
+            brew = which("brew")
+            cmd = [brew or "brew", "uninstall", *(["--cask"] if kind == "cask" else []), *removed]
+            if args.yes and brew:
+                run(cmd)
+            else:
+                info(f"  removed from UniEnv extras; to also uninstall from Homebrew, run: {' '.join(cmd)}")
+        elif kind == "apt":
+            cmd = ["sudo", "apt-get", "remove", "-y", *removed]
+            if args.yes or os.geteuid() == 0:
+                run(cmd[1:] if os.geteuid() == 0 else cmd)
+            else:
+                info(f"  removed from UniEnv extras; to also uninstall from apt, run: {' '.join(cmd)}")
+    except (subprocess.CalledProcessError, RuntimeError, SystemExit) as e:
+        warn(f"remove failed ({e}); rolling back")
+        for f in tracked:
+            if existed[f]:
+                shutil.copy2(snap / f"{f.parent.name}__{f.name}", f)
+            elif f.exists():
+                f.unlink()
+        state = load_state(recipes_all)
+        try:
+            if kind == "python" and existed[PY_DIR / "pyproject.toml"]:
+                install_python(wanted(recipes, state)["python"])
+            elif kind == "node" and existed[NODE_DIR / "package.json"]:
+                install_node(wanted(recipes, state)["node"])
+        except (subprocess.CalledProcessError, RuntimeError, SystemExit) as re_err:
+            warn(f"rollback re-install failed ({re_err}); run unienv install to repair")
+        log_event(event="remove-failed", kind=kind, packages=removed)
+        return 1
+
+    save_state(state)
+    do_sync(state, recipes_all, quiet=True)
+    log_event(event="remove", kind=kind, packages=removed)
+    info(f"✓ removed {', '.join(removed)}")
     return 0
 
 
@@ -1563,6 +1669,15 @@ docs: https://github.com/rupeshbharambe24/unienv-ai""",
     s.add_argument("-y", "--yes", action="store_true")
     s.set_defaults(fn=cmd_need)
 
+    s = sub.add_parser("remove", help="remove a package previously added with `unienv need`")
+    s.add_argument("packages", nargs="+")
+    g = s.add_mutually_exclusive_group()
+    g.add_argument("--node", action="store_true", help="npm package")
+    g.add_argument("--bin", action="store_true", help="system tool (Homebrew formula / apt package)")
+    g.add_argument("--cask", action="store_true", help="macOS app (Homebrew cask)")
+    s.add_argument("-y", "--yes", action="store_true", help="also uninstall system packages via brew/apt")
+    s.set_defaults(fn=cmd_remove)
+
     s = sub.add_parser("doctor", help="verify tools, shell wiring, agent files and secrets hygiene")
     s.add_argument("--json", action="store_true", help="machine-readable output for agents and CI")
     s.add_argument("--fix", action="store_true", help="apply safe fixes (regenerate wiring), then re-check")
@@ -1607,7 +1722,7 @@ docs: https://github.com/rupeshbharambe24/unienv-ai""",
     s.set_defaults(fn=lambda a: print(BIN) or 0)
 
     args = p.parse_args(argv)
-    mutating = args.cmd in ("install", "need", "sync", "uninstall") or (args.cmd == "doctor" and args.fix)
+    mutating = args.cmd in ("install", "need", "remove", "sync", "uninstall") or (args.cmd == "doctor" and args.fix)
     try:
         with state_lock() if mutating else contextlib.nullcontext():
             return args.fn(args)
