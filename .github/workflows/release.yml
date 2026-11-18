@@ -16,7 +16,12 @@ jobs:
         run: |
           scripts/build-mcpb.sh
           npx -y @anthropic-ai/mcpb validate mcpb/manifest.json
-      - name: Attach unienv.mcpb to the release
+      - name: Generate SHA256SUMS
+        run: |
+          mkdir -p dist
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/archive/${GITHUB_REF_NAME}.tar.gz" -o "dist/unienv-ai-${GITHUB_REF_NAME}.tar.gz"
+          (cd dist && sha256sum "unienv-ai-${GITHUB_REF_NAME}.tar.gz" unienv.mcpb > SHA256SUMS)
+      - name: Attach unienv.mcpb and SHA256SUMS to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" dist/unienv.mcpb --clobber || gh release create "$GITHUB_REF_NAME" dist/unienv.mcpb --generate-notes
+        run: gh release upload "$GITHUB_REF_NAME" dist/unienv.mcpb dist/SHA256SUMS --clobber || gh release create "$GITHUB_REF_NAME" dist/unienv.mcpb dist/SHA256SUMS --generate-notes
