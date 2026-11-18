@@ -4,6 +4,15 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Fixed
+- MCP server no longer crashes on malformed JSON-RPC requests or lone-surrogate strings; bad requests get proper JSON-RPC errors. By @KunjMaheshwari in #79. (#67)
+- MCP tools pass proxy and CA certificate variables through, and `install_package` also gets package-index settings (`UV_*`, `PIP_*`, safe `HOMEBREW_*`), so installs work behind corporate proxies. By @KunjMaheshwari in #83. (#68)
+- MCP `install_package` accepts `*` and `^` version specs (`pandas==2.*`, `node-gyp@^9`). By @KunjMaheshwari in #76. (#73)
+- Non-UTF-8 and read-only dotfiles no longer crash `sync`, `install` or `uninstall`: unknown bytes are kept as-is, and unwritable files get a warning. By @KunjMaheshwari in #81. (#61)
+- `unienv doctor` warns and keeps going when an MCP client config has invalid JSON. By @KunjMaheshwari in #82. (#60)
+- `unienv need` with double-quoted PEP 508 markers writes valid `pyproject.toml`. By @KunjMaheshwari in #80. (#62)
+- Agent instructions and the skill call `unienv` by its absolute path. By @KunjMaheshwari in #77. (#72)
+
 ### Added
 - Lint job in CI: `ruff check`, `ruff format --check` and shellcheck on every PR. By @sanjanamg0 in #53. (#43)
 - JSON Schema for recipes (`schema/recipe.schema.json`), validated in CI, with editor autocomplete via a `#:schema` line. By @sanjanamg0 in #54. (#11)
