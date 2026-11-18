@@ -12,6 +12,7 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 - `unienv doctor` warns and keeps going when an MCP client config has invalid JSON. By @KunjMaheshwari in #82. (#60)
 - `unienv need` with double-quoted PEP 508 markers writes valid `pyproject.toml`. By @KunjMaheshwari in #80. (#62)
 - Agent instructions and the skill call `unienv` by its absolute path. By @KunjMaheshwari in #77. (#72)
+- MCP server: an empty or relative `UNIENV_WORKDIR` resolves against your home folder instead of `/`. By @KunjMaheshwari in #78. (#70)
 - Linux: packages removed with `apt remove` (but not purged) are reinstalled instead of counted as installed. By @bfs2021 in #85. (#65)
 
 ### Added
