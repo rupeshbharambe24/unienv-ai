@@ -26,7 +26,7 @@ import time
 import tomllib
 from pathlib import Path
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 PY_VERSION = "3.12"
 
 HOME = Path.home()
@@ -566,6 +566,7 @@ def python_packages() -> dict[str, str]:
     r = run(
         [
             str(py),
+            "-P",  # don't import modules from the cwd (e.g. a stray json.py)
             "-c",
             "import importlib.metadata as m, json;"
             "print(json.dumps({d.metadata['Name']: d.version for d in m.distributions()}))",
@@ -1181,7 +1182,7 @@ def cmd_doctor(args) -> int:
             "    except Exception as e: bad[m] = f'{type(e).__name__}: {e}'[:120]\n"
             "print(json.dumps({'v': sys.version.split()[0], 'bad': bad}))"
         )
-        r = run([str(py), "-c", code], capture=True, check=False, timeout=120)
+        r = run([str(py), "-P", "-c", code], capture=True, check=False, timeout=120)  # -P: ignore modules in the cwd
         try:
             res = json.loads(r.stdout.strip().splitlines()[-1])
             add("python", "ok", f"Python {res['v']} at {py}")
@@ -1276,6 +1277,7 @@ def cmd_doctor(args) -> int:
         r = run(
             [
                 f"{bp}/bin/python3",
+                "-I",  # isolated: no cwd on sys.path, whatever this Python's version
                 "-c",
                 "import sysconfig,os;"
                 "print(os.path.exists(os.path.join(sysconfig.get_path('stdlib'),'EXTERNALLY-MANAGED')))",

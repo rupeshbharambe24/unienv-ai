@@ -27,7 +27,7 @@ import tomllib
 from pathlib import Path
 
 SERVER_NAME = "unienv"
-SERVER_VERSION = "0.2.1"
+SERVER_VERSION = "0.2.2"
 PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]  # newest first
 
 HOME = Path.home()
@@ -56,6 +56,10 @@ def resolve_workdir(raw: str | None = None, *, home: Path | None = None) -> Path
 
 
 WORKDIR = resolve_workdir()
+
+# -P: never put the cwd or the script's folder first on sys.path, so a stray json.py or
+# pandas.py next to a document (e.g. in ~/Downloads) can't shadow a real module
+SAFE_PATH = ["-P"]
 
 MAX_OUTPUT = 20_000  # characters of tool output returned to the model
 DEFAULT_TIMEOUT = 120
@@ -292,7 +296,9 @@ def t_read_document(a: dict) -> str:
         if code != 0:
             raise ToolError(f"tesseract failed: {err.strip()[:500]}")
         return cap(f"[OCR text of {path.name}]\n{out}", limit)
-    code, out, err, _ = run([str(BIN / "ue-py"), "-m", "markitdown", str(path)], cwd=path.parent, timeout=180)
+    code, out, err, _ = run(
+        [str(BIN / "ue-py"), *SAFE_PATH, "-m", "markitdown", str(path)], cwd=path.parent, timeout=180
+    )
     if code == 0 and out.strip():
         return cap(out, limit)
     if ext == ".pdf" and which("pdftotext"):  # fallback for PDFs markitdown can't parse
@@ -393,7 +399,9 @@ def t_run_python(a: dict) -> str:
         f.write(a["code"])
         script = f.name
     try:
-        code, out, err, secs = run([str(BIN / "ue-py"), script], cwd=cwd, timeout=a.get("timeout_s", DEFAULT_TIMEOUT))
+        code, out, err, secs = run(
+            [str(BIN / "ue-py"), *SAFE_PATH, script], cwd=cwd, timeout=a.get("timeout_s", DEFAULT_TIMEOUT)
+        )
     finally:
         os.unlink(script)
     return _report(code, out, err, secs, cwd, before)

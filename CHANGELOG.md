@@ -4,6 +4,13 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-18
+
+Nine community fixes and one security fix. Thank you @KunjMaheshwari, @bfs2021 and @sanjanamg0!
+
+### Security
+- The MCP server's `read_document` and `run_python`, and `unienv doctor`, start Python with `-P` (Homebrew's Python with `-I`), so a stray `.py` file in the document's folder or the current folder can't shadow a real module and run as you. Before, reading `~/Downloads/report.docx` with a `zipfile.py` next to it ran that file. Update with `unienv update`.
+
 ### Fixed
 - MCP server no longer crashes on malformed JSON-RPC requests or lone-surrogate strings; bad requests get proper JSON-RPC errors. By @KunjMaheshwari in #79. (#67)
 - MCP tools pass proxy and CA certificate variables through, and `install_package` also gets package-index settings (`UV_*`, `PIP_*`, safe `HOMEBREW_*`), so installs work behind corporate proxies. By @KunjMaheshwari in #83. (#68)
@@ -20,7 +27,7 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 - JSON Schema for recipes (`schema/recipe.schema.json`), validated in CI, with editor autocomplete via a `#:schema` line. By @sanjanamg0 in #54. (#11)
 
 ### Docs
-- README, CONTRIBUTING, ROADMAP and docs brought up to date for 0.2.1: how to run every CI check locally, the locking behaviour, new troubleshooting entries, and a contributors list.
+- README, CONTRIBUTING, ROADMAP and docs brought up to date: how to run every CI check locally, the locking behaviour, new troubleshooting entries, a contributors list and a star request. (#75, #84)
 
 ## [0.2.1] - 2026-11-17
 
@@ -74,7 +81,8 @@ First public prototype.
 - Login bash on Linux skipped `~/.profile` when `~/.bash_profile` exists; both are now wired.
 - Homebrew's automatic `brew cleanup` no longer runs as a side effect of UniEnv installs.
 
-[Unreleased]: https://github.com/rupeshbharambe24/unienv-ai/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/rupeshbharambe24/unienv-ai/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.2.2
 [0.2.1]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.2.1
 [0.2.0]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.2.0
 [0.1.0]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.1.0

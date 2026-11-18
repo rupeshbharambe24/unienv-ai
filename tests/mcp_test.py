@@ -27,6 +27,12 @@ def call(i, name, args):
     return {"jsonrpc": "2.0", "id": i, "method": "tools/call", "params": {"name": name, "arguments": args}}
 
 
+# A stray module next to a document (think ~/Downloads) must never be imported by read_document
+PLANTED = WORK / "planted-module-ran"
+(WORK / "dl").mkdir()
+(WORK / "dl" / "zipfile.py").write_text(f"open({str(PLANTED)!r}, 'w').write('ran')\nraise ImportError('planted')\n")
+
+
 msgs = [
     {
         "jsonrpc": "2.0",
@@ -77,6 +83,12 @@ msgs = [
     {"jsonrpc": "2.0", "id": 19, "method": "tools/call", "params": {"name": ["x"]}},
     {"jsonrpc": "2.0", "id": 20, "method": "tools/call", "params": {"name": "read_document", "arguments": 5}},
     {"jsonrpc": "2.0", "id": 21, "method": "ping"},
+    call(
+        22,
+        "run_python",
+        {"code": "import docx\nd = docx.Document(); d.add_paragraph('safe path'); d.save('dl/report.docx')"},
+    ),
+    call(23, "read_document", {"path": "dl/report.docx"}),
 ]
 if HAS_SOFFICE:
     msgs.append(call(12, "convert_document", {"input_path": "t.docx", "output_format": "pdf"}))
@@ -186,6 +198,10 @@ check(
     and all(len(list(r.glob("*.png"))) == 2 for r in renders),
 )
 check("pdf → png lists only this call's pages", text(16) != text(17) and text(17).count(".png") == 2)
+check(
+    "read_document never imports .py files next to the document",
+    not PLANTED.exists() and not is_error(23) and "safe path" in text(23),
+)
 if HAS_SOFFICE:
     check("convert_document docx → pdf via LibreOffice", not is_error(12) and (WORK / "t.pdf").exists())
 else:
