@@ -26,9 +26,17 @@ What the agent did **without** UniEnv:
 
 \* **One run in each group hit the same unrelated 2-minute hang.** The agent's first command started with `ls`, and on this machine `ls` is an alias for `eza`. Claude Code replays your shell aliases, and eza ≥ 0.23 waits on stdin when it isn't a terminal, so the command blocked until the 120 s tool timeout. This affects any agent, with or without UniEnv. `unienv doctor` now warns about such aliases (see [troubleshooting](../docs/troubleshooting.md)).
 
-**Caveats:** n = 3 per group on one machine. This is a smoke-level benchmark, not a statistical study. Run it yourself and send a PR with your `results.jsonl`:
+**Caveats:** n = 3 per group on one machine in the initial run. The benchmark suite now defaults to `--runs 10`, supports multiple agents (`claude`, `codex`, `gemini`) and tasks (`docx`, `xlsx`, `pptx`, `pdf-extract`, `ocr`, `docx-to-pdf`), records token and tool-call metrics in `bench/results.jsonl`, and prints median, min, max, and IQR spread via `bench/run-suite.py`:
 
 ```sh
-bench/word-task.sh unienv 5
-bench/word-task.sh baseline 5   # temporarily un-wires UniEnv; restores it on exit
+bench/word-task.sh unienv --runs 10 --agent claude --task docx
+bench/word-task.sh baseline --runs 10 --agent claude --task docx   # temporarily un-wires UniEnv; restores it on exit
+bench/word-task.sh unienv --runs 10 --agent codex --task xlsx
+bench/word-task.sh summary
 ```
+
+## Validation and fixture inputs
+
+The runner generates PDF, OCR PNG and DOCX inputs before timing starts. PDF extraction must match both known table rows; OCR must contain UNIENV WORKS; DOCX-to-PDF verification uses pdftotext and requires its fixture text. Install Poppler for that validation.
+
+The parser handles Claude tool-use/results (including cache tokens), Codex item.completed/turn.completed, and Gemini tool_use/result.stats events. Summary agent/task filters are forwarded by the shell runner. Missing cost data remains unknown rather than claiming a zero-cost run.
