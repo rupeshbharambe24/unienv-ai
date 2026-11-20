@@ -19,6 +19,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -584,9 +585,28 @@ def write_shims() -> None:
     atomic_write(tracker, "\n".join(current_shims) + ("\n" if current_shims else ""))
 
     # the CLI itself: always run with the interpreter that is running us now
-    # (a uv-managed 3.12, never Homebrew's python), so it survives env breakage
+    # (a uv-managed 3.12, never Homebrew's python), falling back to uv python find
     cli = BIN / "unienv"
-    cli.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{Path(__file__).resolve()}" "$@"\n')
+    script = Path(__file__).resolve()
+    cli.write_text(
+        "#!/bin/sh\n"
+        f"PY={shlex.quote(sys.executable)}\n"
+        f"UV={shlex.quote(which('uv') or '')}\n"
+        'if [ ! -x "$PY" ]; then\n'
+        '  if [ -z "$UV" ] || [ ! -x "$UV" ]; then\n'
+        '    UV="$(command -v uv 2>/dev/null || true)"\n'
+        "  fi\n"
+        '  if [ -n "$UV" ] && [ -x "$UV" ]; then\n'
+        f'    PY="$("$UV" python find {PY_VERSION} --managed-python 2>/dev/null || true)"\n'
+        "  fi\n"
+        "fi\n"
+        'if [ -z "$PY" ] || [ ! -x "$PY" ]; then\n'
+        "  echo \"UniEnv's Python 3.12 interpreter is missing. Repair with: "
+        'curl -fsSL https://raw.githubusercontent.com/rupeshbharambe24/unienv-ai/main/install.sh | bash" >&2\n'
+        "  exit 1\n"
+        "fi\n"
+        f'exec "$PY" "{script}" "$@"\n'
+    )
     cli.chmod(0o755)
     ue = BIN / "ue"
     if ue.is_symlink() or ue.exists():
@@ -1412,8 +1432,18 @@ def cmd_doctor(args) -> int:
     # Python environment and imports
     py = PY_DIR / ".venv/bin/python"
     imports = uniq([m for r in recipes for m in r.get("python", {}).get("imports", [])])
-    if not py.exists():
-        add("python", "fail", "shared Python env missing", "unienv install")
+    if not py.exists() or not os.access(py, os.X_OK):
+        dangling = py.is_symlink()
+        add(
+            "python",
+            "fail",
+            f"shared Python base interpreter missing (dangling symlink: {os.readlink(py)})"
+            if dangling
+            else "shared Python env missing",
+            "curl -fsSL https://raw.githubusercontent.com/rupeshbharambe24/unienv-ai/main/install.sh | bash"
+            if dangling
+            else "unienv install",
+        )
     else:
         code = (
             "import importlib, json, sys\nbad = {}\n"
