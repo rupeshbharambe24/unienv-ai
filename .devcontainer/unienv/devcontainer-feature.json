@@ -1,0 +1,23 @@
+{
+  "id": "unienv",
+  "version": "0.2.2",
+  "name": "UniEnv AI",
+  "documentationURL": "https://github.com/rupeshbharambe24/unienv-ai",
+  "description": "Installs UniEnv AI (shared Python 3.12, Node, Office, PDF, OCR and data batteries) and wires shell startup and agent instruction files.",
+  "options": {
+    "batteries": {
+      "type": "string",
+      "default": "",
+      "description": "Comma-separated list of batteries to install (empty installs all default batteries, e.g. 'office,pdf,data')."
+    },
+    "noSystem": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip installing system (apt/Homebrew) packages."
+    }
+  },
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils",
+    "ghcr.io/devcontainers/features/node"
+  ]
+}
