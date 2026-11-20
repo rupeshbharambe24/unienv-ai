@@ -70,7 +70,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y pandoc poppler-utils qpdf ghostscript tesseract-ocr jq ripgrep
+          sudo apt-get install -y pandoc poppler-utils qpdf ghostscript tesseract-ocr jq ripgrep fish
 
       - name: Install (macOS without LibreOffice to keep CI fast)
         if: runner.os == 'macOS'
@@ -81,6 +81,11 @@ jobs:
       - name: Install (Linux)
         if: runner.os == 'Linux'
         run: ./install.sh --no-system --exclude libreoffice
+
+      - name: Fish non-interactive PATH (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          test "$(env -i HOME="$HOME" USER="$USER" PATH=/usr/bin:/bin fish -c 'command -v ue-py')" = "$HOME/.unienv/bin/ue-py"
 
       - name: Doctor
         run: |
