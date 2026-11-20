@@ -1651,6 +1651,7 @@ def cmd_wire(args) -> int:
 
 
 def cmd_uninstall(args) -> int:
+    _uninstall_sandbox()
     for rc in SHELL_FILES:
         try:
             if remove_block(rc, SHELL_BEGIN, SHELL_END):
@@ -1684,6 +1685,194 @@ def cmd_uninstall(args) -> int:
         shutil.rmtree(UNIENV_HOME)
         info(f"  deleted {UNIENV_HOME}")
     info("✓ UniEnv unwired. System packages installed with Homebrew/apt were left in place.")
+    return 0
+
+
+# ── sandbox profiles ────────────────────────────────────────────────────────
+
+
+def _sandbox_read_roots() -> list[str]:
+    return [str(UNIENV_HOME)]
+
+
+def _toml_text(data: dict) -> str:
+    """Serialize parsed TOML values without changing their types or table scope."""
+
+    def value(item):
+        if isinstance(item, str):
+            return json.dumps(item)
+        if isinstance(item, bool):
+            return str(item).lower()
+        if isinstance(item, (int, float)):
+            return repr(item)
+        if isinstance(item, list):
+            return "[" + ", ".join(value(v) for v in item) + "]"
+        if isinstance(item, dict):
+            return "{ " + ", ".join(json.dumps(k) + " = " + value(v) for k, v in item.items()) + " }"
+        if isinstance(item, (_dt.datetime, _dt.date, _dt.time)):
+            return item.isoformat()
+        raise ValueError(f"unsupported TOML value: {type(item).__name__}")
+
+    return "\n".join(json.dumps(k) + " = " + value(v) for k, v in data.items()) + "\n"
+
+
+def sandbox_profile(tool: str) -> str:
+    root = str(UNIENV_HOME)
+    if tool == "claude":
+        return json.dumps(
+            {
+                "permissions": {"allow": [f"Read(/{UNIENV_HOME.as_posix()}/**)"]},
+                "sandbox": {"filesystem": {"allowRead": [root], "allowWrite": [root]}},
+            },
+            indent=2,
+        )
+    if tool == "codex":
+        return _toml_text({"sandbox_workspace_write": {"writable_roots": [root]}})
+    if tool in ("gemini", "seatbelt"):
+        escaped = json.dumps(root)
+        return (
+            ";; Merge into an existing Seatbelt profile; this is not a complete policy.\n"
+            f"(allow file-read* file-map-executable (subpath {escaped}))\n"
+            f"(allow file-write* (subpath {escaped}))"
+        )
+    die(f"unknown sandbox tool: {tool}")
+
+
+def _sandbox_load(path: Path, tool: str) -> dict:
+    try:
+        raw = path.read_text(encoding="utf-8") if path.exists() else ""
+        data = tomllib.loads(raw) if tool == "codex" else (json.loads(raw) if raw.strip() else {})
+        if not isinstance(data, dict):
+            raise ValueError("expected a configuration object")
+        return data
+    except (ValueError, OSError) as exc:
+        die(f"cannot read sandbox settings {path}: {exc}")
+
+
+def _sandbox_state() -> tuple[Path, dict]:
+    path = UNIENV_HOME / "sandbox-settings.json"
+    return path, _sandbox_load(path, "claude")
+
+
+def _sandbox_write(path: Path, data: dict, tool: str) -> None:
+    text = _toml_text(data) if tool == "codex" else json.dumps(data, indent=2) + "\n"
+    if tool == "codex":
+        tomllib.loads(text)
+    if path.exists():
+        backup = path.with_name(path.name + f".unienv-backup-{_dt.datetime.now():%Y%m%d-%H%M%S-%f}")
+        shutil.copy2(path, backup)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write(path, text)
+
+
+def _sandbox_fields(tool: str) -> dict[tuple[str, ...], list[str]]:
+    root = str(UNIENV_HOME)
+    if tool == "codex":
+        return {("sandbox_workspace_write", "writable_roots"): [root]}
+    return {
+        ("permissions", "allow"): [f"Read(/{UNIENV_HOME.as_posix()}/**)"],
+        ("sandbox", "filesystem", "allowRead"): [root],
+        ("sandbox", "filesystem", "allowWrite"): [root],
+    }
+
+
+def _install_sandbox(path: Path, tool: str) -> bool:
+    data = _sandbox_load(path, tool)
+    state_path, state = _sandbox_state()
+    key = str(path.resolve())
+    record = state.get(key, {"tool": tool, "added": {}, "created": [], "new_file": not path.exists()})
+    changed = False
+    for fields, additions in _sandbox_fields(tool).items():
+        parent = data
+        for index, field in enumerate(fields[:-1]):
+            if field not in parent:
+                parent[field] = {}
+                record["created"].append(list(fields[: index + 1]))
+            if not isinstance(parent[field], dict):
+                die(f"{path}: {'.'.join(fields[: index + 1])} must be a table/object")
+            parent = parent[field]
+        name = fields[-1]
+        if name not in parent:
+            parent[name] = []
+            record["created"].append(list(fields))
+        values = parent[name]
+        if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
+            die(f"{path}: {'.'.join(fields)} must be a list of strings")
+        for item in additions:
+            if item not in values:
+                values.append(item)
+                record["added"].setdefault(".".join(fields), []).append(item)
+                changed = True
+    if not changed:
+        return False
+    _sandbox_write(path, data, tool)
+    state[key] = record
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write(state_path, json.dumps(state, indent=2) + "\n")
+    return True
+
+
+def _uninstall_sandbox() -> None:
+    state_path, state = _sandbox_state()
+    for key, record in list(state.items()):
+        path = Path(key)
+        try:
+            data = _sandbox_load(path, record["tool"])
+            for dotted, items in record["added"].items():
+                fields = dotted.split(".")
+                parent = data
+                for field in fields[:-1]:
+                    parent = parent.get(field, {}) if isinstance(parent, dict) else {}
+                values = parent.get(fields[-1]) if isinstance(parent, dict) else None
+                if isinstance(values, list):
+                    parent[fields[-1]] = [v for v in values if v not in items]
+            for fields in sorted(record["created"], key=len, reverse=True):
+                parent = data
+                for field in fields[:-1]:
+                    parent = parent.get(field, {}) if isinstance(parent, dict) else {}
+                if isinstance(parent, dict) and parent.get(fields[-1]) in ({}, []):
+                    parent.pop(fields[-1], None)
+            if path.exists():
+                if record["new_file"] and not data:
+                    path.unlink()
+                else:
+                    _sandbox_write(path, data, record["tool"])
+            del state[key]
+        except (OSError, SystemExit) as exc:
+            warn(f"could not remove sandbox settings from {path}: {exc}")
+    if state:
+        atomic_write(state_path, json.dumps(state, indent=2) + "\n")
+    elif state_path.exists():
+        state_path.unlink()
+
+
+def _install_claude_sandbox(path: Path) -> bool:
+    return _install_sandbox(path, "claude")
+
+
+def _install_codex_sandbox(path: Path) -> bool:
+    return _install_sandbox(path, "codex")
+
+
+def cmd_sandbox(args) -> int:
+    if args.action == "print":
+        tools = ("claude", "codex", "seatbelt") if args.tool == "all" else (args.tool,)
+        for tool in tools:
+            print(sandbox_profile(tool))
+        return 0
+    if args.tool not in ("claude", "codex", "all"):
+        die("sandbox install supports claude, codex, or all")
+    tools = ("claude", "codex") if args.tool == "all" else (args.tool,)
+    for tool in tools:
+        path = (
+            HOME / ".claude/settings.json"
+            if tool == "claude"
+            else Path(os.environ.get("CODEX_HOME", HOME / ".codex")) / "config.toml"
+        )
+        changed = _install_sandbox(path, tool)
+        info(f"  {tool}: {'updated' if changed else 'already configured'} ({path})")
+        if tool == "codex":
+            info("  Codex writable_roots applies in workspace-write mode; the current sandbox mode was not changed.")
     return 0
 
 
@@ -1776,11 +1965,22 @@ docs: https://github.com/rupeshbharambe24/unienv-ai""",
     s = sub.add_parser("path", help="print the UniEnv bin directory")
     s.set_defaults(fn=lambda a: print(BIN) or 0)
 
+    s = sub.add_parser("sandbox", help="print or install sandbox allow-rules for Claude Code, Codex, Gemini/Seatbelt")
+    s.add_argument("action", nargs="?", default="print", choices=["print", "install"])
+    s.add_argument(
+        "--tool",
+        default="all",
+        choices=["claude", "codex", "gemini", "seatbelt", "all"],
+        help="which tool profile to print or install (default: all)",
+    )
+    s.set_defaults(fn=cmd_sandbox)
+
     args = p.parse_args(argv)
     mutating = (
         args.cmd in ("install", "need", "sync", "uninstall")
         or (args.cmd == "upgrade" and not args.dry_run)
         or (args.cmd == "doctor" and args.fix)
+        or (args.cmd == "sandbox" and args.action == "install")
     )
     try:
         with state_lock() if mutating else contextlib.nullcontext():

@@ -31,6 +31,26 @@ Run `unienv sync --all-agents` to write instruction files even for tools that ar
 
 **Desktop apps** don't start a shell and get the system's minimal PATH. That's why MCP servers configured as `npx …` or `uvx …` fail with `spawn ENOENT`. Use absolute paths, for example `"command": "/Users/you/.unienv/bin/ue-py"`.
 
+## Sandbox profiles (`unienv sandbox`)
+
+Use these settings when an agent's sandbox needs to write UniEnv's cache, package state, or environment. The profiles grant access only to the configured UniEnv directory; they do not auto-approve arbitrary Python or shell commands.
+
+```sh
+unienv sandbox print --tool claude
+unienv sandbox print --tool codex
+unienv sandbox print --tool seatbelt
+unienv sandbox install --tool claude
+unienv sandbox install --tool codex
+```
+
+- Claude Code uses `sandbox.filesystem.allowRead` and `allowWrite` for the UniEnv directory plus a narrowly scoped Read permission. It does not change sandbox enablement or add Bash permissions. See the [sandbox settings documentation](https://code.claude.com/docs/en/sandboxing).
+- Codex uses `sandbox_workspace_write.writable_roots`. The existing sandbox mode and network setting are preserved. The additional root is effective in `workspace-write` mode; choose that mode yourself if appropriate. The installer never silently changes a read-only policy. See the [configuration reference](https://developers.openai.com/codex/config-reference).
+- Configuration is parsed before any write. Existing values and nested tables are retained, and timestamped backups are created. TOML is reserialized, so comments and formatting remain available in the backup rather than in the rewritten file.
+- UniEnv records which entries it added in `~/.unienv/sandbox-settings.json`. `unienv uninstall` removes only those entries, retaining pre-existing grants and subsequent unrelated settings. Invalid or unreadable configurations are reported instead of overwritten.
+- Seatbelt/Gemini output is a snippet to merge into an existing policy, not a complete sandbox policy. It grants file access to UniEnv only; keep the agent's normal temporary-directory and executable rules.
+
+Package installation, upgrades, sync, and update need write access to UniEnv. Sandbox permissions do not provide network permission automatically, and organization-managed policy can override local settings.
+
 ## Adding a tool
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md#writing-an-agent-adapter). An adapter is a few lines in `agent_targets()` in `src/unienv.py`, plus links to the tool's official docs proving the paths.

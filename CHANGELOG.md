@@ -5,6 +5,9 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 ## [Unreleased]
 
 ### Added
+- Narrow sandbox write access to the UniEnv directory for Claude Code and Codex, with parsed configuration merges and reversible ownership tracking. (#37)
+
+### Added
 - MCP server: clients can cancel running and queued tool calls, pings are answered during long calls, and long calls send a progress heartbeat every 10 s. Package installs can't be cancelled, so their rollback always runs. By @KunjMaheshwari in #131. (#32)
 - `unienv upgrade [packages] [--node] [--dry-run]` upgrades installed Python and Node packages, checks that every battery module still imports, and rolls back automatically if anything fails. By @KunjMaheshwari in #112. (#27)
 - Windsurf adapter: `unienv sync` writes the UniEnv block into Windsurf's global rules (`~/.codeium/windsurf/memories/global_rules.md`). By @KunjMaheshwari in #101. (#5)
