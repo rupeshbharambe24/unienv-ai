@@ -72,6 +72,20 @@ class UpdateRefTests(unittest.TestCase):
             self.assertTrue((home / "share" / "src" / "unienv.py").exists())
             mock_call.assert_called_once()
 
+    def test_update_preserves_saved_no_wire_preference(self):
+        for saved, explicit, expected in ((False, False, True), (True, False, False), (True, True, True)):
+            with self.subTest(saved=saved, explicit=explicit), tempfile.TemporaryDirectory() as tmp:
+                with (
+                    patch.object(u, "UNIENV_HOME", pathlib.Path(tmp)),
+                    patch.object(u, "load_recipes", return_value={}),
+                    patch.object(u, "load_state", return_value={"options": {"wire_shells": saved}}),
+                    patch.object(urllib.request, "urlopen", return_value=io.BytesIO(_make_tarball_bytes())),
+                    patch("subprocess.call", return_value=0) as call,
+                    contextlib.redirect_stdout(io.StringIO()),
+                ):
+                    self.assertEqual(u.cmd_update(argparse.Namespace(ref="main", no_wire=explicit)), 0)
+                self.assertEqual("--no-wire" in call.call_args.args[0], expected)
+
     def test_cmd_update_handles_http_404_cleanly(self):
         err_404 = urllib.error.HTTPError(
             url="https://github.com/rupeshbharambe24/unienv-ai/archive/nonexistent.tar.gz",
