@@ -39,6 +39,43 @@ jobs:
           pip install --quiet jsonschema
           python3 scripts/validate_recipes.py
 
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - name: Install core smoke-test dependency
+        run: choco install ripgrep --yes --no-progress
+      - name: Windows regression tests
+        run: python -m unittest discover -s tests/unit -p test_windows_support.py -v
+      - name: Install, exercise both shells, and uninstall
+        shell: pwsh
+        run: |
+          $env:UNIENV_HOME = Join-Path $env:RUNNER_TEMP "unienv smoke"
+          $before = [Environment]::GetEnvironmentVariable("Path", "User")
+          ./install.ps1 --dev --no-system --batteries core
+          if ($LASTEXITCODE) { throw "install failed" }
+          & "$env:UNIENV_HOME/bin/unienv.cmd" --version
+          & "$env:UNIENV_HOME/bin/ue-py.cmd" -c "import json; print('python ready')"
+          if ($LASTEXITCODE) { throw "Python shim failed" }
+          & "C:/Program Files/Git/bin/bash.exe" -c '"$UNIENV_HOME/bin/ue-py" -c "import json"'
+          if ($LASTEXITCODE) { throw "Git Bash shim failed" }
+          & "$env:UNIENV_HOME/bin/unienv.cmd" uninstall --purge
+          if ($LASTEXITCODE) { throw "uninstall failed" }
+          if ([Environment]::GetEnvironmentVariable("Path", "User") -ne $before) {
+            throw "User PATH was not restored"
+          }
+          if (Test-Path $env:UNIENV_HOME) { throw "purge left files" }
+          New-Item -ItemType Directory -Force $env:UNIENV_HOME | Out-Null
+          New-Item -ItemType Junction -Path "$env:UNIENV_HOME/share" -Target $PWD.Path | Out-Null
+          $refused = $false
+          try { ./install.ps1 --dev --no-system --batteries core } catch { $refused = $_ -match "share is a link" }
+          if (-not $refused) { throw "Linked share was not refused" }
+          if (-not (Test-Path "./src/unienv.py")) { throw "Source checkout was changed" }
+
   test:
     strategy:
       fail-fast: false

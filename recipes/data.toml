@@ -26,6 +26,16 @@ brew = ["duckdb"]
 [system.debian]
 apt = []
 
+[system.windows]
+winget = ["DuckDB.cli"]
+scoop = ["duckdb"]
+
+[system.fedora]
+dnf = []
+
+[system.arch]
+pacman = []
+
 [verify]
 bins = []
 

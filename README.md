@@ -288,3 +288,5 @@ Thank you to everyone who has helped build UniEnv AI: [@bfs2021](https://github.
 ## License
 
 Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option. Tools installed by recipes keep their own licenses (see each recipe's `license_note`).
+
+Windows installations copy the checkout with install.ps1 --dev; they do not require symlink privileges. Reinstall refuses existing linked share directories to protect their targets. Git Bash wrappers use the Windows Python environment. Uninstall removes only the user PATH entry added by the installer.
