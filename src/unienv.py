@@ -441,7 +441,15 @@ def install_system(w: dict, *, assume_yes: bool) -> list[str]:
                 warn("System packages needed. Run this, then `unienv install` again:\n    " + " ".join(cmd))
                 failures.extend(f"apt:{p}" for p in pkgs)
     else:
-        warn(f"No system package backend for {pk} yet; install these yourself: {', '.join(w['bins'])}")
+        req = uniq(w.get("brew", []) + w.get("cask", []) + w.get("apt", []))
+        if not req:
+            return []
+        hint = " ".join(req) if req else "<packages>"
+        warn(
+            f"No system package backend for {pk} yet; install these yourself "
+            f"(e.g. `sudo dnf install {hint}` or `sudo pacman -S {hint}`): {', '.join(req)}"
+        )
+        return [f"{pk}:{b}" for b in req]
     return failures
 
 
