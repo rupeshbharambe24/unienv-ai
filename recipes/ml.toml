@@ -1,0 +1,28 @@
+#:schema ../schema/recipe.schema.json
+schema = "unienv/recipe/v0"
+id = "ml"
+summary = "Classical machine learning and scientific computing: scikit-learn, scipy, xgboost, lightgbm (opt-in)"
+default = false
+maintainers = ["github:rupeshbharambe24", "github:KunjMaheshwari"]
+license_note = "scikit-learn, scipy, imbalanced-learn, joblib BSD-3-Clause; xgboost Apache-2.0; lightgbm MIT"
+
+[python]
+packages = ["scikit-learn", "scipy", "xgboost; sys_platform == 'darwin'", "xgboost-cpu; sys_platform == 'linux'", "lightgbm", "imbalanced-learn"]
+imports = ["sklearn", "scipy", "xgboost", "lightgbm", "imblearn", "joblib"]
+
+[system.macos]
+brew = ["libomp"]
+
+[system.debian]
+apt = ["libgomp1"]
+
+[verify]
+bins = []
+
+[agent]
+notes = """
+- Tabular ML & scientific computing via `ue-py`: `scikit-learn` (`sklearn`), `scipy`, `xgboost`, `lightgbm`, `imbalanced-learn` (`imblearn`), and `joblib`.
+- Pass `n_jobs=-1` to estimators and cross-validation to use all CPU cores, and serialize fitted pipelines or models with `joblib.dump(model, "model.joblib")` / `joblib.load("model.joblib")`.
+- Linux uses xgboost-cpu so the shared environment does not pull NVIDIA NCCL/CUDA runtime wheels.
+- Keep heavy training or deep-learning dependencies inside project virtualenvs rather than the shared `ue-py` environment.
+"""
