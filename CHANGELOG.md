@@ -4,22 +4,30 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
-### Fixed
-- Remove stale generated shims on the first upgrade, preserve user files, and prune old backups once per sync or package addition. (#38)
-
 ### Security
-- Add MCP readonly and folder restrictions, disable arbitrary execution under roots, protect dangling output symlinks, sandbox Pandoc conversions, and expose policy settings in the Desktop extension. (#33)
-
-### Added
-- MCP image content for document reads, PDF renders and generated charts, with signature validation, a consistent 512 KB image limit, and a shared changed-file scan. (#31)
+- MCP safe mode: `UNIENV_MCP_MODE=readonly` blocks writes, `UNIENV_MCP_ALLOW_INSTALL` controls package installs, and `UNIENV_MCP_ROOTS` limits file access to the folders you list (arbitrary code execution is disabled under roots). Output paths that are dangling symlinks are refused, Pandoc conversions are sandboxed in safe mode, and the Desktop extension exposes these settings. By @KunjMaheshwari in #132. (#33)
+- `unienv update` on Python 3.11.0–3.11.3, which lacks tar extraction filters, now validates the download itself: only regular files and folders are extracted (links and devices are rejected), and permissions are normalized like Python's `data` filter. By @KunjMaheshwari in #102. (#66)
 
 ### Added
 - MCP server: clients can cancel running and queued tool calls, pings are answered during long calls, and long calls send a progress heartbeat every 10 s. Package installs can't be cancelled, so their rollback always runs. By @KunjMaheshwari in #131. (#32)
+- MCP image content for document reads, PDF renders and generated charts, with signature validation, a consistent 512 KB image limit, and a shared changed-file scan. By @KunjMaheshwari in #128. (#31)
+- `unienv mcp install` also configures VS Code, Zed, Windsurf and LM Studio. If Zed's `settings.json` has comments, it prints the snippet to paste instead of editing the file. By @KunjMaheshwari in #121. (#30)
+- Cline and Roo Code adapters: `unienv sync` writes the UniEnv rules to `~/.cline/rules/unienv.md` and `~/.roo/rules/unienv.md`. By @KunjMaheshwari in #107. (#6)
 - `unienv upgrade [packages] [--node] [--dry-run]` upgrades installed Python and Node packages, checks that every battery module still imports, and rolls back automatically if anything fails. By @KunjMaheshwari in #112. (#27)
+- `unienv du` shows how much space the Python and Node environments, backups and `~/.unienv` as a whole take. Old backups are pruned automatically (the 10 most recent and anything from the last 7 days are kept). By @KunjMaheshwari in #123. (#38)
+- Opt-in `latex` battery: Tectonic via Homebrew on macOS; on Linux, the battery notes point to Tectonic's upstream installer. By @KunjMaheshwari in #93. (#1)
 - Windsurf adapter: `unienv sync` writes the UniEnv block into Windsurf's global rules (`~/.codeium/windsurf/memories/global_rules.md`). By @KunjMaheshwari in #101. (#5)
+- Benchmark suite: several agents (`claude`, `codex`, `gemini`), six tasks with generated inputs, per-agent token and tool-call parsing, and median/IQR summaries. By @KunjMaheshwari in #126. (#46)
 - CI: unit tests for the MCP helpers, a check that a release tag matches the version in all three files, and a weekly job that runs the LibreOffice conversions. By @KunjMaheshwari in #106. (#74)
 
 ### Fixed
+- A failed `unienv need` now rolls back completely: new files are deleted, `node_modules` is restored, and the reinstall is guarded. By @KunjMaheshwari in #96. (#20)
+- `unienv need --bin`/`--cask` fails and rolls back on a platform with no system package backend, instead of reporting success. By @KunjMaheshwari in #91. (#18)
+- UniEnv refuses to edit a file whose UniEnv block markers are orphaned or duplicated, instead of guessing, and `unienv doctor` reports such files. By @KunjMaheshwari in #92. (#56)
+- `--no-wire` is remembered in state, so `unienv update` no longer rewires your shell files afterwards; `unienv wire` now takes the state lock. By @KunjMaheshwari in #127. (#58)
+- When the shared Python is missing, `unienv` and `ue-py` fall back through uv or print how to repair it, instead of failing with a confusing error. By @KunjMaheshwari in #125. (#24)
+- MCP tools report files created or changed in subfolders up to 3 levels deep (capped at 2,000 files and 500 folders). By @KunjMaheshwari in #111. (#25)
+- The first upgrade removes stale generated shims while leaving your own files alone. By @KunjMaheshwari in #123. (#38)
 - Wiring a file keeps its own line endings (CRLF, LF or CR) instead of converting the whole file. By @bfs2021 in #90. (#57)
 - `unienv update --ref` accepts tags and commit SHAs as well as branches, and a failed download ends with a clear message instead of a traceback. By @KunjMaheshwari in #94. (#63)
 - `unienv need --node` fails and rolls back when npm is missing, instead of reporting success. By @KunjMaheshwari in #95. (#59)
