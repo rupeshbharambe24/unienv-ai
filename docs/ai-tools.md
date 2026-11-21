@@ -12,8 +12,10 @@ UniEnv reaches AI tools in two ways:
 | **Gemini CLI** | `~/.gemini/GEMINI.md` | none | `~/.gemini/` or `gemini` |
 | **OpenCode** | `~/.config/opencode/AGENTS.md` | none | `~/.config/opencode/` or `opencode` |
 | **Windsurf** | `~/.codeium/windsurf/memories/global_rules.md` ([docs](https://docs.windsurf.com/windsurf/cascade/memories#rules)) | none | `~/.codeium/windsurf/` or `windsurf` |
+| **Cline** | `~/.cline/rules/unienv.md` | none | `~/.cline`, Cline CLI, or VS Code/Cursor/Windsurf extension |
+| **Roo Code** | `~/.roo/rules/unienv.md` | none | `~/.roo` or VS Code extension |
 | **Cursor** | paste `~/.unienv/AGENTS.md` into *Settings → Rules → User Rules*; MCP tools via `unienv mcp install --client cursor` | none | manual for now ([#4](https://github.com/rupeshbharambe24/unienv-ai/issues/4)) |
-| **Cline, Roo, Copilot, Aider** | paste `~/.unienv/AGENTS.md` into the tool's global rules | none | adapters planned, help wanted |
+| **Copilot, Aider** | paste `~/.unienv/AGENTS.md` into the tool's global rules | none | adapters planned, help wanted |
 | **Claude Desktop chat** | **UniEnv MCP server**: `unienv mcp install` or the `.mcpb` extension ([guide](mcp.md)) | n/a | config file |
 | **LM Studio, other MCP apps** | MCP server via `unienv mcp config` | n/a | manual |
 

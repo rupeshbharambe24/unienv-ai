@@ -724,6 +724,20 @@ def render_skill(manifest: dict, recipes: list[dict]) -> str:
     )
 
 
+def _vscode_ext_dirs(prefix: str) -> list[Path]:
+    out: list[Path] = []
+    for ext_root in (
+        HOME / ".vscode/extensions",
+        HOME / ".vscode-server/extensions",
+        HOME / ".vscode-insiders/extensions",
+        HOME / ".cursor/extensions",
+        HOME / ".windsurf/extensions",
+    ):
+        if ext_root.is_dir():
+            out.extend(sorted(ext_root.glob(f"{prefix}*")))
+    return out
+
+
 def agent_targets() -> list[dict]:
     codex_home = Path(os.environ.get("CODEX_HOME", HOME / ".codex"))
     return [
@@ -768,11 +782,29 @@ def agent_targets() -> list[dict]:
             "instructions": HOME / ".codeium/windsurf/memories/global_rules.md",
             "skills": None,
         },
+        {
+            "id": "cline",
+            "name": "Cline",
+            "detect": [HOME / ".cline", *_vscode_ext_dirs("saoudrizwan.claude-dev")],
+            "bin": "cline",
+            "instructions": HOME / ".cline/rules/unienv.md",
+            "skills": None,
+            "owned_rules_file": True,
+        },
+        {
+            "id": "roo-code",
+            "name": "Roo Code",
+            "detect": [HOME / ".roo", *_vscode_ext_dirs("rooveterinaryinc.roo-cline")],
+            "bin": None,
+            "instructions": HOME / ".roo/rules/unienv.md",
+            "skills": None,
+            "owned_rules_file": True,
+        },
     ]
 
 
 def detected(agent: dict) -> bool:
-    return any(p.exists() for p in agent["detect"]) or bool(which(agent["bin"]))
+    return any(p.exists() for p in agent["detect"]) or bool(agent.get("bin") and which(agent["bin"]))
 
 
 def sync_agents(manifest: dict, recipes: list[dict], *, only_detected: bool = True) -> list[str]:
@@ -1713,6 +1745,8 @@ def cmd_uninstall(args) -> int:
         try:
             if remove_block(a["instructions"], MD_BEGIN, MD_END):
                 info(f"  removed block from {a['instructions']}")
+            if a.get("owned_rules_file") and a["instructions"].exists() and not a["instructions"].read_text().strip():
+                a["instructions"].unlink()
         except OSError as e:
             warn(f"could not update {a['instructions']} ({e}); remove the UniEnv block manually")
         if a["skills"] is not None and (a["skills"] / "unienv").exists():
