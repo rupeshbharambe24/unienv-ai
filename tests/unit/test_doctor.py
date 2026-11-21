@@ -16,7 +16,7 @@ spec.loader.exec_module(unienv)
 
 
 class DoctorFixTests(unittest.TestCase):
-    def run_doctor(self, *, missing_manifest=False, warning=False, json_output=True):
+    def run_doctor(self, *, missing_manifest=False, warning=False, json_output=True, unreadable_agent=False):
         with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack:
             root = Path(directory)
             manifest = root / "manifest.json"
@@ -47,10 +47,33 @@ class DoctorFixTests(unittest.TestCase):
                 stack.enter_context(patch.object(unienv, name, return_value=value))
             sync = stack.enter_context(patch.object(unienv, "do_sync"))
             sync.side_effect = lambda *a, **kw: manifest.write_text("{}")
+            if unreadable_agent:
+                inst = root / "CLAUDE.md"
+                inst.write_text("private")
+                stack.enter_context(
+                    patch.object(
+                        unienv, "agent_targets", return_value=[{"id": "claude", "name": "Claude", "instructions": inst}]
+                    )
+                )
+                stack.enter_context(patch.object(unienv, "detected", return_value=True))
+                original_read = unienv._read_block_text
+
+                def read(path):
+                    if path == inst:
+                        raise PermissionError("denied")
+                    return original_read(path)
+
+                stack.enter_context(patch.object(unienv, "_read_block_text", side_effect=read))
             stdout, stderr = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 result = unienv.cmd_doctor(argparse.Namespace(json=json_output, fix=True, quiet_ok=False))
             return result, stdout.getvalue(), stderr.getvalue(), sync.call_count
+
+    def test_unreadable_agent_file_is_reported_without_crashing(self):
+        _, stdout, _, _ = self.run_doctor(unreadable_agent=True)
+        checks = {c["id"]: c for c in json.loads(stdout)["checks"]}
+        self.assertEqual(checks["agent:claude"]["status"], "warn")
+        self.assertIn("cannot read", checks["agent:claude"]["message"])
 
     def test_json_fix_is_one_document(self):
         result, stdout, stderr, count = self.run_doctor(missing_manifest=True)

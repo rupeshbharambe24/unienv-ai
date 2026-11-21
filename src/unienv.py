@@ -219,9 +219,30 @@ def _write_block_text(path: Path, text: str, eol: str) -> None:
         f.write(text.replace("\n", eol))
 
 
+def _has_malformed_block(text: str, begin: str, end: str) -> bool:
+    """True when begin/end markers are unbalanced or orphaned."""
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    in_block = False
+    for line in normalized.splitlines():
+        if line.strip() == begin:
+            if in_block:
+                return True
+            in_block = True
+        elif line.strip() == end:
+            if not in_block:
+                return True
+            in_block = False
+    return in_block
+
+
 def upsert_block(path: Path, body: str, begin: str, end: str, *, top: bool = False) -> bool:
     """Insert or replace a marked block. Returns True if the file changed."""
     old, eol = _read_block_text(path) if path.exists() else ("", os.linesep)
+    if _has_malformed_block(old, begin, end):
+        warn(
+            f"{path} has an incomplete UniEnv block (missing end marker); fix or remove the orphaned marker line first"
+        )
+        return False
     block = f"{begin}\n{body.rstrip()}\n{end}\n"
     pattern = re.compile(re.escape(begin) + r".*?" + re.escape(end) + r"\n?", re.S)
     if pattern.search(old):
@@ -240,6 +261,11 @@ def remove_block(path: Path, begin: str, end: str) -> bool:
     if not path.exists():
         return False
     old, eol = _read_block_text(path)
+    if _has_malformed_block(old, begin, end):
+        warn(
+            f"{path} has an incomplete UniEnv block (missing end marker); fix or remove the orphaned marker line first"
+        )
+        return False
     new = re.sub(r"\n?" + re.escape(begin) + r".*?" + re.escape(end) + r"\n?", "\n", old, flags=re.S)
     new = new.strip("\n") + ("\n" if new.strip() else "")
     if new == old:
@@ -279,6 +305,8 @@ def read_block(path: Path, begin: str, end: str) -> str | None:
     try:
         text = path.read_text(encoding="utf-8", errors="surrogateescape")
     except OSError:
+        return None
+    if _has_malformed_block(text, begin, end):
         return None
     m = re.search(re.escape(begin) + r"\n(.*?)\n" + re.escape(end), text, re.S)
     return m.group(1) if m else None
@@ -1460,6 +1488,21 @@ def cmd_doctor(args) -> int:
         )
 
     # Shell wiring: what agents and GUI apps actually see
+    for rc in SHELL_FILES:
+        if not rc.exists():
+            continue
+        try:
+            rc_text, _ = _read_block_text(rc)
+        except OSError:
+            continue
+        if _has_malformed_block(rc_text, SHELL_BEGIN, SHELL_END):
+            short = str(rc).replace(str(HOME), "~")
+            add(
+                f"block:{rc.name}",
+                "fail",
+                f"{short} has an incomplete UniEnv block (missing end marker)",
+                f"restore `{SHELL_END}` or delete the orphaned `{SHELL_BEGIN}` line in {short}, then run `unienv sync`",
+            )
     target = str(BIN / "ue-py")
     probes = [
         ("zsh -c", ["/bin/zsh", "-c", "command -v ue-py"]),
@@ -1500,8 +1543,22 @@ def cmd_doctor(args) -> int:
         for a in agent_targets():
             if not detected(a):
                 continue
-            cur = read_block(a["instructions"], MD_BEGIN, MD_END)
-            short = str(a["instructions"]).replace(str(HOME), "~")
+            inst = a["instructions"]
+            short = str(inst).replace(str(HOME), "~")
+            try:
+                inst_text = _read_block_text(inst)[0] if inst.exists() else ""
+            except OSError as exc:
+                add(f"agent:{a['id']}", "warn", f"{a['name']}: cannot read {short}: {exc}")
+                continue
+            if _has_malformed_block(inst_text, MD_BEGIN, MD_END):
+                add(
+                    f"agent:{a['id']}",
+                    "fail",
+                    f"{a['name']}: {short} has an incomplete UniEnv block (missing end marker)",
+                    f"restore `{MD_END}` or delete the orphaned `{MD_BEGIN}` line in {short}, then run `unienv sync`",
+                )
+                continue
+            cur = read_block(inst, MD_BEGIN, MD_END)
             if cur is None:
                 add(f"agent:{a['id']}", "fail", f"{a['name']}: no UniEnv block in {short}", "unienv sync")
             elif cur.rstrip() != expected:
