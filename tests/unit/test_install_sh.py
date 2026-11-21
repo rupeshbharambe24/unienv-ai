@@ -54,6 +54,7 @@ class InstallShTests(unittest.TestCase):
                 "EOF\n"
                 "      exit 0 ;;\n"
                 "    *github.com/rupeshbharambe24/unienv-ai/archive*)\n"
+                f'      printf "%s\\n" "$arg" > "{tmp_path / "download-url"}"\n'
                 f'      cat "{tarball}"\n'
                 "      exit 0 ;;\n"
                 "  esac\n"
@@ -66,6 +67,7 @@ class InstallShTests(unittest.TestCase):
                 "HOME": str(tmp_path / "home"),
                 "UNIENV_HOME": str(tmp_path / "unienv_home"),
                 "UV_INSTALL_DIR": str(custom_uv_dir),
+                "UNIENV_REF": "0123456789abcdef0123456789abcdef01234567",
                 "PATH": f"{fake_bin}:/usr/bin:/bin",
             }
             pathlib.Path(env["HOME"]).mkdir()
@@ -81,6 +83,10 @@ class InstallShTests(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 0, f"stdout={proc.stdout}\nstderr={proc.stderr}")
             self.assertIn("Downloading UniEnv AI", proc.stdout)
+            self.assertEqual(
+                (tmp_path / "download-url").read_text().strip(),
+                "https://github.com/rupeshbharambe24/unienv-ai/archive/" + env["UNIENV_REF"] + ".tar.gz",
+            )
             marker_file = pathlib.Path(env["UNIENV_HOME"]) / "ran_source.txt"
             self.assertTrue(marker_file.exists())
             self.assertEqual(marker_file.read_text(), "DOWNLOADED_TARBALL_USED")

@@ -37,7 +37,7 @@ if [ -z "$REPO" ] || [ ! -f "$REPO/src/unienv.py" ]; then
   say "Downloading UniEnv AI ($REF)"
   TMP_SRC="$(mktemp -d)"
   trap 'rm -rf "$TMP_SRC"' EXIT
-  curl -fsSL "https://github.com/rupeshbharambe24/unienv-ai/archive/refs/heads/$REF.tar.gz" \
+  curl -fsSL "https://github.com/rupeshbharambe24/unienv-ai/archive/$REF.tar.gz" \
     | tar -xz -C "$TMP_SRC" --strip-components=1
   REPO="$TMP_SRC"
   if [ "$DEV" = 1 ]; then echo "--dev needs a git checkout: git clone https://github.com/rupeshbharambe24/unienv-ai" >&2; exit 2; fi

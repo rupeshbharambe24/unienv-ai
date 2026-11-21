@@ -32,7 +32,7 @@ class HelperTests(unittest.TestCase):
             self.assertTrue(u.upsert_block(path, "second", "# BEGIN", "# END"))
             self.assertEqual(u.read_block(path, "# BEGIN", "# END"), "second")
             self.assertTrue(u.remove_block(path, "# BEGIN", "# END"))
-            self.assertEqual(path.read_text(), "existing\n")
+            self.assertEqual(path.read_bytes(), b"existing")
             self.assertIsNone(u.read_block(path, "# BEGIN", "# END"))
 
     def test_missing_end_marker_is_not_read_or_removed(self):
@@ -68,7 +68,6 @@ class HelperTests(unittest.TestCase):
                             [
                                 b"# My rules",
                                 b"be nice",
-                                b"",
                                 b"# BEGIN",
                                 b"unienv stuff",
                                 b"# END",
