@@ -437,11 +437,44 @@ def cap(text: str, limit: int = MAX_OUTPUT) -> str:
     return text[:limit] + f"\n\n[… truncated {len(text) - limit:,} more characters]"
 
 
+_SNAPSHOT_SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__"}
+_SNAPSHOT_MAX_DEPTH = 3
+_SNAPSHOT_MAX_FILES = 2000
+_SNAPSHOT_MAX_DIRS = 500
+
+
 def snapshot(d: Path) -> dict[str, float]:
-    try:
-        return {p.name: p.stat().st_mtime for p in d.iterdir() if p.is_file()}
-    except OSError:
-        return {}
+    out: dict[str, float] = {}
+    visited_dirs = 0
+
+    def _walk(cur: Path, depth: int) -> None:
+        nonlocal visited_dirs
+        if len(out) >= _SNAPSHOT_MAX_FILES or visited_dirs >= _SNAPSHOT_MAX_DIRS:
+            return
+        visited_dirs += 1
+        try:
+            entries = sorted(cur.iterdir(), key=lambda p: p.name)
+        except OSError:
+            return
+        for p in entries:
+            if len(out) >= _SNAPSHOT_MAX_FILES or visited_dirs >= _SNAPSHOT_MAX_DIRS:
+                return
+            name = p.name
+            if name in _SNAPSHOT_SKIP_DIRS or name.startswith("."):
+                continue
+            try:
+                if p.is_symlink():
+                    continue
+                if p.is_dir():
+                    if depth < _SNAPSHOT_MAX_DEPTH:
+                        _walk(p, depth + 1)
+                elif p.is_file():
+                    out[p.relative_to(d).as_posix()] = p.stat().st_mtime
+            except OSError:
+                continue
+
+    _walk(d, 0)
+    return out
 
 
 def changed_files(d: Path, before: dict[str, float]) -> list[str]:
