@@ -96,6 +96,34 @@ class HelperTests(unittest.TestCase):
                 with path.open("rb") as f:
                     self.assertEqual(u.validate_recipe(tomllib.load(f), path.stem), [])
 
+    def test_browser_recipe_and_env_sh_export_playwright_browsers_path(self):
+        from unittest.mock import patch
+
+        path = ROOT / "recipes" / "browser.toml"
+        self.assertTrue(path.exists())
+        lines = path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines[0], "#:schema ../schema/recipe.schema.json")
+        with path.open("rb") as f:
+            recipe = tomllib.load(f)
+        self.assertEqual(u.validate_recipe(recipe, "browser"), [])
+        self.assertEqual(recipe["id"], "browser")
+        self.assertIs(recipe.get("default"), False)
+        self.assertEqual(recipe["python"]["packages"], ["playwright"])
+        self.assertEqual(recipe["python"]["imports"], ["playwright"])
+        self.assertIn("PLAYWRIGHT_BROWSERS_PATH", recipe["agent"]["notes"])
+        self.assertIn("--no-sandbox", recipe["agent"]["notes"])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            unienv_home = pathlib.Path(tmp) / ".unienv"
+            unienv_home.mkdir(parents=True, exist_ok=True)
+            env_sh = unienv_home / "env.sh"
+            state = {"batteries": ["browser"], "options": {"wire_homebrew": False}}
+            with patch.object(u, "UNIENV_HOME", unienv_home), patch.object(u, "ENV_SH", env_sh):
+                u.write_env_sh(state)
+            text = env_sh.read_text(encoding="utf-8")
+            self.assertIn("PLAYWRIGHT_BROWSERS_PATH", text)
+            self.assertIn("$UNIENV_HOME/share/browsers", text)
+
     def test_excluded_system_packages_and_bins(self):
         from unittest.mock import patch
 

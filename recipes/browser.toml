@@ -1,0 +1,23 @@
+#:schema ../schema/recipe.schema.json
+schema = "unienv/recipe/v0"
+id = "browser"
+summary = "Headless Chromium via Playwright shared across every AI tool (opt-in: ~300 MB)"
+default = false
+maintainers = ["github:rupeshbharambe24", "github:KunjMaheshwari"]
+license_note = "Playwright Apache-2.0; Chromium BSD-3-Clause"
+
+[python]
+packages = ["playwright"]
+imports = ["playwright"]
+
+[verify]
+bins = []
+
+[agent]
+notes = """
+- One shared Playwright browser directory is exported via `PLAYWRIGHT_BROWSERS_PATH="$UNIENV_HOME/share/browsers"`.
+- Launch headless Chromium in `ue-py` with `from playwright.sync_api import sync_playwright`:
+  `p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"])`
+- If macOS Seatbelt sandboxes fail with `bootstrap_check_in` Mach port errors, run browser commands outside the sandbox or grant Mach port lookup in the sandbox profile.
+- Ensure Chromium is downloaded into the shared folder: `PLAYWRIGHT_BROWSERS_PATH="$UNIENV_HOME/share/browsers" ue-py -m playwright install chromium`.
+"""

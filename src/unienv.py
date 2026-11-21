@@ -484,6 +484,21 @@ def install_python(packages: list[str]) -> None:
         [uv, "sync", "--project", str(PY_DIR), "--managed-python", "--quiet"],
         env={"UV_PROJECT_ENVIRONMENT": str(PY_DIR / ".venv")},
     )
+    if any(py_name(p) == "playwright" for p in packages):
+        install_browsers()
+
+
+def install_browsers() -> None:
+    browsers_dir = UNIENV_HOME / "share" / "browsers"
+    browsers_dir.mkdir(parents=True, exist_ok=True)
+    py = PY_DIR / ".venv/bin/python"
+    if not py.exists():
+        return
+    run(
+        [str(py), "-P", "-m", "playwright", "install", "chromium"],
+        env={"PLAYWRIGHT_BROWSERS_PATH": str(browsers_dir)},
+        check=False,
+    )
 
 
 def write_package_json(packages: list[str]) -> None:
@@ -617,6 +632,7 @@ def write_env_sh(state: dict) -> None:
     lines += [
         'case ":$PATH:" in *":$UNIENV_HOME/bin:"*) ;; *) PATH="$UNIENV_HOME/bin:$PATH" ;; esac',
         "export PATH",
+        'export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$UNIENV_HOME/share/browsers}"',
         "# `bash -c` (non-login, non-interactive) reads only $BASH_ENV.",
         '[ -z "${BASH_ENV:-}" ] && export BASH_ENV="$UNIENV_HOME/env.sh"',
     ]
