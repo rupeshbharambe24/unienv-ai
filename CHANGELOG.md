@@ -15,9 +15,12 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 - Cline and Roo Code adapters: `unienv sync` writes the UniEnv rules to `~/.cline/rules/unienv.md` and `~/.roo/rules/unienv.md`. By @KunjMaheshwari in #107. (#6)
 - `unienv upgrade [packages] [--node] [--dry-run]` upgrades installed Python and Node packages, checks that every battery module still imports, and rolls back automatically if anything fails. By @KunjMaheshwari in #112. (#27)
 - `unienv du` shows how much space the Python and Node environments, backups and `~/.unienv` as a whole take. Old backups are pruned automatically (the 10 most recent and anything from the last 7 days are kept). By @KunjMaheshwari in #123. (#38)
+- Opt-in `ml` battery: scikit-learn, SciPy, LightGBM, imbalanced-learn and XGBoost (the CPU-only `xgboost-cpu` build on Linux, so no CUDA libraries are pulled in). By @KunjMaheshwari in #109. (#35)
+- Opt-in `speech` battery: local audio and video transcription with faster-whisper (CTranslate2, no PyTorch) and ffmpeg, with the model cache shared under `~/.unienv/cache/hf`. About 470 MB on Linux, plus the model on first use. By @KunjMaheshwari in #114. (#36)
 - Opt-in `latex` battery: Tectonic via Homebrew on macOS; on Linux, the battery notes point to Tectonic's upstream installer. By @KunjMaheshwari in #93. (#1)
 - Windsurf adapter: `unienv sync` writes the UniEnv block into Windsurf's global rules (`~/.codeium/windsurf/memories/global_rules.md`). By @KunjMaheshwari in #101. (#5)
 - Benchmark suite: several agents (`claude`, `codex`, `gemini`), six tasks with generated inputs, per-agent token and tool-call parsing, and median/IQR summaries. By @KunjMaheshwari in #126. (#46)
+- CI tests the piped `curl … | bash` install and `unienv update`, and checks that uninstall restores dotfiles byte for byte. `install.sh` downloads tags and commit SHAs as well as branches. By @KunjMaheshwari in #116. (#44)
 - CI: unit tests for the MCP helpers, a check that a release tag matches the version in all three files, and a weekly job that runs the LibreOffice conversions. By @KunjMaheshwari in #106. (#74)
 
 ### Fixed
@@ -28,6 +31,7 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 - When the shared Python is missing, `unienv` and `ue-py` fall back through uv or print how to repair it, instead of failing with a confusing error. By @KunjMaheshwari in #125. (#24)
 - MCP tools report files created or changed in subfolders up to 3 levels deep (capped at 2,000 files and 500 folders). By @KunjMaheshwari in #111. (#25)
 - The first upgrade removes stale generated shims while leaving your own files alone. By @KunjMaheshwari in #123. (#38)
+- Uninstall no longer joins two lines when something was appended after the UniEnv block in a file that had no final newline. By @KunjMaheshwari in #116. (#44)
 - Wiring a file keeps its own line endings (CRLF, LF or CR) instead of converting the whole file. By @bfs2021 in #90. (#57)
 - `unienv update --ref` accepts tags and commit SHAs as well as branches, and a failed download ends with a clear message instead of a traceback. By @KunjMaheshwari in #94. (#63)
 - `unienv need --node` fails and rolls back when npm is missing, instead of reporting success. By @KunjMaheshwari in #95. (#59)
