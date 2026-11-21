@@ -961,16 +961,21 @@ def cmd_need(args) -> int:
         info(f"  note: not in a curated recipe, installing from the public registry: {', '.join(uncurated)}")
 
     # snapshot so a failed install can be rolled back exactly
-    snap = BACKUP_DIR / _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-    snap.mkdir(parents=True, exist_ok=True)
-    for f in [
+    tracked = [
         STATE_FILE,
         PY_DIR / "pyproject.toml",
         PY_DIR / "uv.lock",
+        PY_DIR / ".python-version",
         NODE_DIR / "package.json",
         NODE_DIR / "package-lock.json",
-    ]:
-        if f.exists():
+    ]
+    existed = {f: f.exists() for f in tracked}
+    venv = PY_DIR / ".venv"
+    venv_existed = os.path.lexists(venv)
+    snap = BACKUP_DIR / _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    snap.mkdir(parents=True, exist_ok=True)
+    for f in tracked:
+        if existed[f]:
             shutil.copy2(f, snap / f"{f.parent.name}__{f.name}")
 
     state["options"]["exclude"] = [x for x in state["options"]["exclude"] if x not in pkgs]
@@ -996,13 +1001,26 @@ def cmd_need(args) -> int:
                 raise RuntimeError(", ".join(failed))
     except (subprocess.CalledProcessError, RuntimeError, SystemExit) as e:
         warn(f"install failed ({e}); rolling back")
-        for f in snap.iterdir():
-            parent, name = f.name.split("__", 1)
-            dest = {"py": PY_DIR, "node": NODE_DIR}.get(parent, UNIENV_HOME) / name
-            shutil.copy2(f, dest)
+        for f in tracked:
+            if existed[f]:
+                shutil.copy2(snap / f"{f.parent.name}__{f.name}", f)
+            elif f.exists():
+                f.unlink()
+        if not existed[NODE_DIR / "package.json"] and (NODE_DIR / "node_modules").exists():
+            shutil.rmtree(NODE_DIR / "node_modules", ignore_errors=True)
+        if not venv_existed and os.path.lexists(venv):
+            if venv.is_symlink():
+                venv.unlink()
+            else:
+                shutil.rmtree(venv)
         state = load_state(recipes_all)
-        if kind == "python":
-            install_python(wanted(recipes, state)["python"])
+        try:
+            if kind == "python" and existed[PY_DIR / "pyproject.toml"]:
+                install_python(wanted(recipes, state)["python"])
+            elif kind == "node" and existed[NODE_DIR / "package.json"]:
+                install_node(wanted(recipes, state)["node"])
+        except (subprocess.CalledProcessError, RuntimeError, SystemExit) as re_err:
+            warn(f"rollback re-install failed ({re_err}); run unienv install to repair")
         log_event(event="need-failed", kind=kind, packages=new)
         return 1
     save_state(state)
