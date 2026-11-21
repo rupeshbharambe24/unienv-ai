@@ -152,6 +152,7 @@ It should use `ue-py`, `pdftotext` and `soffice-safe` directly, with no virtuale
 | `ocr` | ✅ | tesseract + pytesseract (English; `ue need --bin tesseract-lang` for more) |
 | `media` | opt-in | ffmpeg, ImageMagick |
 | `fonts` | opt-in | Carlito, Caladea, Liberation, Noto CJK (so LibreOffice renders match Word) |
+| `diagrams` | opt-in | Graphviz (`dot`) + `@mermaid-js/mermaid-cli` (`mmdc`) for rendering `.dot` and `.mmd` diagrams |
 
 Each battery is a small, declarative [TOML recipe](recipes/office.toml). **Adding one is the easiest way to contribute**: LaTeX, browsers, diagrams, GIS, audio… see [CONTRIBUTING.md](CONTRIBUTING.md#writing-a-recipe).
 

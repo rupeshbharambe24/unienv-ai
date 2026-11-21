@@ -96,6 +96,24 @@ class HelperTests(unittest.TestCase):
                 with path.open("rb") as f:
                     self.assertEqual(u.validate_recipe(tomllib.load(f), path.stem), [])
 
+    def test_diagrams_recipe_validates_and_is_opt_in(self):
+        path = ROOT / "recipes" / "diagrams.toml"
+        self.assertTrue(path.exists())
+        lines = path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines[0], "#:schema ../schema/recipe.schema.json")
+        with path.open("rb") as f:
+            recipe = tomllib.load(f)
+        self.assertEqual(u.validate_recipe(recipe, "diagrams"), [])
+        self.assertEqual(recipe["id"], "diagrams")
+        self.assertIs(recipe.get("default"), False)
+        self.assertEqual(recipe["node"]["packages"], ["@mermaid-js/mermaid-cli"])
+        self.assertEqual(recipe["node"]["modules"], [])
+        self.assertEqual(recipe["system"]["macos"]["brew"], ["graphviz"])
+        self.assertEqual(recipe["system"]["debian"]["apt"], ["graphviz"])
+        self.assertEqual(recipe["verify"]["bins"], ["dot"])
+        self.assertIn("dot -Tpng in.dot -o out.png", recipe["agent"]["notes"])
+        self.assertIn("mmdc -i in.mmd -o out.svg", recipe["agent"]["notes"])
+
     def test_excluded_system_packages_and_bins(self):
         from unittest.mock import patch
 
