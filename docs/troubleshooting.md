@@ -14,6 +14,8 @@ unienv doctor --json   # attach this to bug reports
 - Check the shell wiring: `unienv doctor` shows a ✗ for any shell mode that can't see UniEnv. `unienv wire` rewrites the blocks.
 - Desktop apps never read shell files: use absolute paths from `~/.unienv/manifest.json`.
 
+ZDOTDIR wiring is remembered in state.json, so uninstall removes it even from a shell or GUI without ZDOTDIR set.
+
 ## The agent still creates a virtualenv
 
 - Check that the instruction block exists: `unienv doctor` lists each agent file.
