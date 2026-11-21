@@ -1223,6 +1223,16 @@ REPO_TARBALL = "https://github.com/rupeshbharambe24/unienv-ai/archive/{ref}.tar.
 # ── MCP server for desktop apps ─────────────────────────────────────────────
 
 
+MCP_CLIENT_KEYS = {
+    "claude-desktop": "mcpServers",
+    "cursor": "mcpServers",
+    "windsurf": "mcpServers",
+    "lm-studio": "mcpServers",
+    "vscode": "servers",
+    "zed": "context_servers",
+}
+
+
 def mcp_clients() -> dict[str, Path]:
     """Config files of MCP clients that can't run shell commands themselves (or benefit anyway)."""
     return {
@@ -1230,37 +1240,91 @@ def mcp_clients() -> dict[str, Path]:
         if IS_MAC
         else (HOME / ".config/Claude/claude_desktop_config.json"),
         "cursor": HOME / ".cursor/mcp.json",
+        "windsurf": HOME / ".codeium/windsurf/mcp_config.json",
+        "lm-studio": HOME / ".lmstudio/mcp.json",
+        "vscode": (HOME / "Library/Application Support/Code/User/mcp.json")
+        if IS_MAC
+        else (HOME / ".config/Code/User/mcp.json"),
+        "zed": HOME / ".config/zed/settings.json",
     }
 
 
-def mcp_entry() -> dict:
+def mcp_client_key(client: str | Path) -> str:
+    if isinstance(client, Path):
+        for name, path in mcp_clients().items():
+            if path == client:
+                return MCP_CLIENT_KEYS.get(name, "mcpServers")
+        return "mcpServers"
+    return MCP_CLIENT_KEYS.get(client, "mcpServers")
+
+
+def _mcp_client_installed(name: str, path: Path) -> bool:
+    return path.exists() or path.parent.exists()
+
+
+def mcp_entry(client: str | None = None) -> dict:
     # absolute path: GUI apps start servers with a minimal PATH (the `spawn ENOENT` bug class)
-    return {"command": str(BIN / "unienv"), "args": ["mcp"]}
+    entry: dict = {"command": str(BIN / "unienv"), "args": ["mcp"]}
+    if client == "vscode":
+        return {"type": "stdio", **entry}
+    return entry
+
+
+def _zed_has_comments(path: Path) -> bool:
+    if not path.exists():
+        return False
+    try:
+        raw = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    if not re.search(r"(^|\s)//|/\*", raw, re.M):
+        return False
+    try:
+        json.loads(raw)
+        return False
+    except json.JSONDecodeError:
+        return True
 
 
 def _load_json(path: Path) -> dict:
     if not path.exists() or not path.read_text().strip():
         return {}
     try:
-        return json.loads(path.read_text())
+        data = json.loads(path.read_text())
     except json.JSONDecodeError:
         die(f"{path} is not valid JSON; fix it first (UniEnv won't overwrite it).")
+    if not isinstance(data, dict):
+        die(f"{path} is not a JSON object; fix it first (UniEnv won't overwrite it).")
+    return data
 
 
-def mcp_set(path: Path, entry: dict | None) -> bool:
+def mcp_set(path: Path, entry: dict | None, *, key: str | None = None) -> bool:
     """Add (entry) or remove (None) the unienv server in an MCP client config, keeping a backup.
 
     Other servers are never touched. Returns True if the file changed.
     """
     if entry is None and not path.exists():
         return False
+    resolved_key = key or mcp_client_key(path)
     data = _load_json(path)
-    servers = data.setdefault("mcpServers", {})
-    if servers.get("unienv") == entry:
-        return False
     if entry is None:
-        servers.pop("unienv")
+        changed = False
+        for k in uniq([resolved_key, "mcpServers"]):
+            servers = data.get(k)
+            if isinstance(servers, dict) and "unienv" in servers:
+                servers.pop("unienv")
+                changed = True
+        if not changed:
+            return False
     else:
+        servers = data.get(resolved_key)
+        if servers is None:
+            servers = {}
+            data[resolved_key] = servers
+        elif not isinstance(servers, dict):
+            die(f"{path} has invalid {resolved_key} (expected an object); fix it first.")
+        if servers.get("unienv") == entry:
+            return False
         servers["unienv"] = entry
     if path.exists():
         backup = path.with_name(path.name + f".unienv-backup-{_dt.datetime.now():%Y%m%d-%H%M%S}")
@@ -1277,15 +1341,34 @@ def cmd_mcp(args) -> int:
 
         return unienv_mcp.serve()
     if args.action == "config":
-        print(json.dumps({"mcpServers": {"unienv": mcp_entry()}}, indent=2))
+        root_key = mcp_client_key(args.client) if args.client != "all" else "mcpServers"
+        entry_client = args.client if args.client != "all" else None
+        print(json.dumps({root_key: {"unienv": mcp_entry(entry_client)}}, indent=2))
         return 0
     clients = mcp_clients()
     targets = list(clients) if args.client == "all" else [args.client]
+    failed = False
     for name in targets:
         path = clients[name]
-        if args.action == "install" and name != "claude-desktop" and args.client == "all" and not path.parent.exists():
+        if (
+            args.action == "install"
+            and name != "claude-desktop"
+            and args.client == "all"
+            and not _mcp_client_installed(name, path)
+        ):
             continue  # only touch clients that are actually installed
-        if mcp_set(path, mcp_entry() if args.action == "install" else None):
+        if name == "zed" and _zed_has_comments(path):
+            if args.action == "install":
+                info(f"  i {path} contains comments; paste this snippet into Zed (`unienv mcp config --client zed`):")
+                print(json.dumps({mcp_client_key("zed"): {"unienv": mcp_entry("zed")}}, indent=2))
+            continue
+        try:
+            changed = mcp_set(path, mcp_entry(name) if args.action == "install" else None, key=mcp_client_key(name))
+        except SystemExit:
+            failed = True
+            warn(f"skipped {name}: fix its JSON configuration and retry")
+            continue
+        if changed:
             verb = "added to" if args.action == "install" else "removed from"
             info(f"  ✓ unienv MCP server {verb} {name} ({path})")
         elif args.action == "install":
@@ -1293,7 +1376,7 @@ def cmd_mcp(args) -> int:
     if args.action == "install":
         info("\nRestart the app (quit it fully, then reopen) to load the UniEnv tools.")
         log_event(event="mcp-install", clients=targets)
-    return 0
+    return int(failed)
 
 
 def mcp_handshake(timeout: float = 15) -> tuple[bool, str, float]:
@@ -1542,16 +1625,19 @@ def cmd_doctor(args) -> int:
             raw = p.read_text(encoding="utf-8", errors="replace").strip()
             data = json.loads(raw) if raw else {}
         except (OSError, json.JSONDecodeError):
+            if n == "zed" and _zed_has_comments(p):
+                continue
             add(f"mcp:{n}", "warn", f"{p} is not valid JSON; can't check the unienv entry")
             continue
         if not isinstance(data, dict):
             add(f"mcp:{n}", "warn", f"{p} is not a JSON object; can't check the unienv entry")
             continue
-        servers = data.get("mcpServers")
+        key = mcp_client_key(n)
+        servers = data.get(key)
         if servers is None:
             continue
         if not isinstance(servers, dict):
-            add(f"mcp:{n}", "warn", f"{p} has invalid mcpServers (expected an object); can't check the unienv entry")
+            add(f"mcp:{n}", "warn", f"{p} has invalid {key} (expected an object); can't check the unienv entry")
             continue
         if "unienv" in servers:
             configured.append(n)
@@ -1723,8 +1809,10 @@ def cmd_uninstall(args) -> int:
                 warn(f"could not remove {a['skills'] / 'unienv'} ({e})")
     # desktop apps would otherwise keep trying to start a server that no longer exists
     for name, path in mcp_clients().items():
+        if name == "zed" and _zed_has_comments(path):
+            continue
         try:
-            if mcp_set(path, None):
+            if mcp_set(path, None, key=mcp_client_key(name)):
                 info(f"  removed the unienv MCP server from {name} ({path})")
         except SystemExit:  # invalid JSON: _load_json already explained; keep uninstalling
             pass
@@ -1863,7 +1951,7 @@ docs: https://github.com/rupeshbharambe24/unienv-ai""",
     s.add_argument(
         "--client",
         default="claude-desktop",
-        choices=["claude-desktop", "cursor", "all"],
+        choices=[*MCP_CLIENT_KEYS, "all"],
         help="which app to configure (default: claude-desktop)",
     )
     s.set_defaults(fn=cmd_mcp)

@@ -20,12 +20,27 @@ You need UniEnv installed first (`curl -fsSL https://raw.githubusercontent.com/r
 ### Option A: one command (recommended)
 
 ```sh
-unienv mcp install                 # Claude Desktop
-unienv mcp install --client cursor # Cursor
-unienv mcp install --client all    # every supported app that's installed
+unienv mcp install                      # Claude Desktop
+unienv mcp install --client cursor      # Cursor
+unienv mcp install --client windsurf    # Windsurf
+unienv mcp install --client lm-studio   # LM Studio
+unienv mcp install --client vscode      # VS Code / GitHub Copilot
+unienv mcp install --client zed         # Zed
+unienv mcp install --client all         # every supported app that's installed
 ```
 
+| Client (`--client`) | Config path | Root JSON key |
+|---|---|---|
+| `claude-desktop` | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) / `~/.config/Claude/claude_desktop_config.json` (Linux) | `mcpServers` |
+| `cursor` | `~/.cursor/mcp.json` | `mcpServers` |
+| `windsurf` | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
+| `lm-studio` | `~/.lmstudio/mcp.json` | `mcpServers` |
+| `vscode` | `~/Library/Application Support/Code/User/mcp.json` (macOS) / `~/.config/Code/User/mcp.json` (Linux) | `servers` |
+| `zed` | `~/.config/zed/settings.json` | `context_servers` |
+
 This merges a `unienv` entry into the app's MCP config (a timestamped backup is made first) using **absolute paths**, so it works even though desktop apps start with a minimal PATH. **Quit the app fully and reopen it.**
+
+Zed settings that contain `//` or `/* */` comments are preserved: `unienv mcp install` prints the `unienv mcp config --client zed` snippet to paste manually, and `doctor` and `uninstall` skip the file quietly. Zed's current custom-server schema uses `command`, `args` and `env` under `context_servers` (https://zed.dev/docs/ai/mcp), and VS Code's `mcp.json` uses `"type": "stdio"` under `servers`. Claude Code uses UniEnv through the shell; its frequently rewritten `~/.claude.json` state file is never edited by these commands.
 
 ### Option B: Claude Desktop Extension (one click)
 

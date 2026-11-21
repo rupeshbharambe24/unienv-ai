@@ -28,7 +28,7 @@ class UninstallMcpTests(unittest.TestCase):
                 stack.enter_context(patch.object(u, name, value))
             configs = list(u.mcp_clients().values())
             for path in configs:
-                path.parent.mkdir(parents=True)
+                path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps({"mcpServers": {"unienv": u.mcp_entry(), "other": {"command": "x"}}}))
             with contextlib.redirect_stdout(io.StringIO()):
                 u.cmd_uninstall(argparse.Namespace(purge=False))
