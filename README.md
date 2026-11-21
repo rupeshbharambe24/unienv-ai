@@ -152,6 +152,7 @@ It should use `ue-py`, `pdftotext` and `soffice-safe` directly, with no virtuale
 | `ocr` | ✅ | tesseract + pytesseract (English; `ue need --bin tesseract-lang` for more) |
 | `media` | opt-in | ffmpeg, ImageMagick |
 | `fonts` | opt-in | Carlito, Caladea, Liberation, Noto CJK (so LibreOffice renders match Word) |
+| `speech` | opt-in | faster-whisper (CTranslate2, no PyTorch) + ffmpeg for local audio/video transcription |
 
 Each battery is a small, declarative [TOML recipe](recipes/office.toml). **Adding one is the easiest way to contribute**: LaTeX, browsers, diagrams, GIS, audio… see [CONTRIBUTING.md](CONTRIBUTING.md#writing-a-recipe).
 
