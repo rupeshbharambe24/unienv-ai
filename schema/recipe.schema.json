@@ -77,6 +77,22 @@
           "properties": {
             "apt": { "$ref": "#/$defs/stringList", "description": "apt packages." }
           }
+        },
+        "fedora": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "dnf.",
+          "properties": {
+            "dnf": { "$ref": "#/$defs/stringList", "description": "dnf packages." }
+          }
+        },
+        "arch": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "pacman.",
+          "properties": {
+            "pacman": { "$ref": "#/$defs/stringList", "description": "pacman packages." }
+          }
         }
       }
     },

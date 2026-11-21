@@ -30,6 +30,12 @@ cask = ["libreoffice"]
 [system.debian]
 apt = ["pandoc", "libreoffice-writer", "libreoffice-calc", "libreoffice-impress"]
 
+[system.fedora]
+dnf = ["pandoc", "libreoffice-writer", "libreoffice-calc", "libreoffice-impress"]
+
+[system.arch]
+pacman = ["pandoc-cli", "libreoffice-fresh"]
+
 [verify]
 bins = ["pandoc", "soffice-safe"]
 provided_by = { pandoc = "pandoc", soffice-safe = "libreoffice" }

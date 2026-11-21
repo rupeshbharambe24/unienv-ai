@@ -16,6 +16,12 @@ brew = ["tesseract"]
 [system.debian]
 apt = ["tesseract-ocr"]
 
+[system.fedora]
+dnf = ["tesseract"]
+
+[system.arch]
+pacman = ["tesseract", "tesseract-data-eng"]
+
 [verify]
 bins = ["tesseract"]
 

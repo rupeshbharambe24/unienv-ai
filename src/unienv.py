@@ -186,11 +186,42 @@ def uniq(items) -> list:
     return out
 
 
+def _os_release_tokens(path: Path = Path("/etc/os-release")) -> set[str]:
+    if not path.exists():
+        return set()
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return set()
+    tokens: set[str] = set()
+    for line in text.splitlines():
+        if "=" not in line or line.lstrip().startswith("#"):
+            continue
+        k, _, v = line.strip().partition("=")
+        if k in ("ID", "ID_LIKE"):
+            for tok in v.strip("\"'").lower().split():
+                tokens.add(tok)
+    return tokens
+
+
 def platform_key() -> str:
     if IS_MAC:
         return "macos"
     if Path("/etc/debian_version").exists():
         return "debian"
+    tokens = _os_release_tokens()
+    if tokens & {"debian", "ubuntu"}:
+        return "debian"
+    if tokens & {"rhel", "centos", "rocky", "almalinux"}:
+        return sys.platform
+    if "fedora" in tokens or Path("/etc/fedora-release").exists():
+        return "fedora"
+    if tokens & {"arch", "manjaro", "endeavouros"} or Path("/etc/arch-release").exists():
+        return "arch"
+    if which("dnf"):
+        return "fedora"
+    if which("pacman"):
+        return "arch"
     return sys.platform
 
 
@@ -317,6 +348,28 @@ def validate_recipe(r: dict, stem: str) -> list[str]:
         v = r.get(section, {}).get(key, [])
         if not isinstance(v, list) or not all(isinstance(x, str) for x in v):
             problems.append(f"[{section}].{key} must be a list of strings")
+    sys_sec = r.get("system", {})
+    allowed_system = {
+        "macos": {"brew", "cask"},
+        "debian": {"apt"},
+        "fedora": {"dnf"},
+        "arch": {"pacman"},
+    }
+    if not isinstance(sys_sec, dict):
+        problems.append("[system] must be a table")
+    else:
+        for pk, pval in sys_sec.items():
+            if pk not in allowed_system:
+                problems.append(f"unknown [system.{pk}] platform")
+                continue
+            if not isinstance(pval, dict):
+                problems.append(f"[system.{pk}] must be a table")
+                continue
+            for mgr, pkgs in pval.items():
+                if mgr not in allowed_system[pk]:
+                    problems.append(f"unknown [system.{pk}].{mgr} key")
+                elif not isinstance(pkgs, list) or not all(isinstance(x, str) for x in pkgs):
+                    problems.append(f"[system.{pk}].{mgr} must be a list of strings")
     return problems
 
 
@@ -324,7 +377,7 @@ def default_state(recipes: dict) -> dict:
     return {
         "version": VERSION,
         "batteries": [k for k, r in recipes.items() if r.get("default") and not r.get("always")],
-        "extras": {"python": [], "node": [], "brew": [], "cask": [], "apt": []},
+        "extras": {"python": [], "node": [], "brew": [], "cask": [], "apt": [], "dnf": [], "pacman": []},
         "options": {"wire_homebrew": True, "exclude": []},
     }
 
@@ -367,7 +420,9 @@ def wanted(recipes: list[dict], state: dict) -> dict[str, list[str]]:
         pkgs = [p for r in recipes for p in r.get("system", {}).get(pk, {}).get(kind, [])]
         # "libreoffice" also excludes apt's "libreoffice-writer", "libreoffice-calc", ...
         return [
-            p for p in uniq(pkgs + state["extras"][kind]) if not any(p == x or p.startswith(x + "-") for x in excluded)
+            p
+            for p in uniq(pkgs + state.get("extras", {}).get(kind, []))
+            if not any(p == x or p.startswith(x + "-") for x in excluded)
         ]
 
     bins, skipped = [], []
@@ -383,6 +438,8 @@ def wanted(recipes: list[dict], state: dict) -> dict[str, list[str]]:
         "brew": system("brew"),
         "cask": system("cask"),
         "apt": system("apt"),
+        "dnf": system("dnf"),
+        "pacman": system("pacman"),
         "bins": uniq(bins),
         "skipped_bins": uniq(skipped),
     }
@@ -396,6 +453,14 @@ def _apt_installed(pkg: str) -> bool:
     """
     r = run(["dpkg-query", "-W", "-f=${Status}", pkg], capture=True, check=False)
     return r.stdout.strip() == "install ok installed"
+
+
+def _dnf_installed(pkg: str) -> bool:
+    return run(["rpm", "-q", pkg], capture=True, check=False).returncode == 0
+
+
+def _pacman_installed(pkg: str) -> bool:
+    return run(["pacman", "-Qi", pkg], capture=True, check=False).returncode == 0
 
 
 # ── installers ──────────────────────────────────────────────────────────────
@@ -428,18 +493,32 @@ def install_system(w: dict, *, assume_yes: bool) -> list[str]:
                 failures.append(f"cask:{c}")
         if not formulas and not casks:
             info("  all system packages already installed")
-    elif pk == "debian":
-        pkgs = [p for p in w["apt"] if not _apt_installed(p)]
+    elif pk in ("debian", "fedora", "arch"):
+        mgr_cfg = {
+            "debian": ("apt", _apt_installed, ["sudo", "apt-get", "install", "-y"]),
+            "fedora": ("dnf", _dnf_installed, ["sudo", "dnf", "install", "-y"]),
+            "arch": ("pacman", _pacman_installed, ["sudo", "pacman", "-S", "--noconfirm", "--needed"]),
+        }
+        kind, is_installed, base_cmd = mgr_cfg[pk]
+        pkgs = [p for p in w.get(kind, []) if not is_installed(p)]
         if pkgs:
-            cmd = ["sudo", "apt-get", "install", "-y", *pkgs]
+            cmd = [*base_cmd, *pkgs]
             if assume_yes or os.geteuid() == 0:
                 if os.geteuid() == 0:
                     cmd = cmd[1:]
                 if run(cmd, check=False).returncode != 0:
-                    failures.extend(f"apt:{p}" for p in pkgs)
+                    if pk == "fedora":
+                        prefix = cmd[: -len(pkgs)]
+                        for package in pkgs:
+                            if run([*prefix, package], check=False).returncode != 0:
+                                failures.append(f"{kind}:{package}")
+                    else:
+                        failures.extend(f"{kind}:{p}" for p in pkgs)
             else:
                 warn("System packages needed. Run this, then `unienv install` again:\n    " + " ".join(cmd))
-                failures.extend(f"apt:{p}" for p in pkgs)
+                failures.extend(f"{kind}:{p}" for p in pkgs)
+        else:
+            info("  all system packages already installed")
     else:
         warn(f"No system package backend for {pk} yet; install these yourself: {', '.join(w['bins'])}")
     return failures
@@ -935,8 +1014,9 @@ def cmd_need(args) -> int:
     recipes_all = load_recipes()
     state = load_state(recipes_all)
     kind = "node" if args.node else "brew" if args.bin else "cask" if args.cask else "python"
-    if kind in ("brew", "cask") and platform_key() == "debian":
-        kind = "apt"
+    linux_mgr = {"debian": "apt", "fedora": "dnf", "arch": "pacman"}.get(platform_key())
+    if kind in ("brew", "cask") and linux_mgr:
+        kind = linux_mgr
     pkgs = args.packages
     recipes = active_recipes(recipes_all, state)
     w = wanted(recipes, state)
@@ -989,6 +1069,8 @@ def cmd_need(args) -> int:
                     "brew": new if kind == "brew" else [],
                     "cask": new if kind == "cask" else [],
                     "apt": new if kind == "apt" else [],
+                    "dnf": new if kind == "dnf" else [],
+                    "pacman": new if kind == "pacman" else [],
                 },
                 assume_yes=args.yes,
             )

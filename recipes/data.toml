@@ -26,6 +26,12 @@ brew = ["duckdb"]
 [system.debian]
 apt = []
 
+[system.fedora]
+dnf = []
+
+[system.arch]
+pacman = []
+
 [verify]
 bins = []
 

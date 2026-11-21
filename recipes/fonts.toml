@@ -12,6 +12,12 @@ cask = ["font-carlito", "font-caladea", "font-liberation", "font-noto-sans-cjk"]
 [system.debian]
 apt = ["fonts-crosextra-carlito", "fonts-crosextra-caladea", "fonts-liberation2", "fonts-noto-cjk"]
 
+[system.fedora]
+dnf = ["google-carlito-fonts", "sil-caladea-fonts", "liberation-fonts", "google-noto-sans-cjk-fonts"]
+
+[system.arch]
+pacman = ["ttf-carlito", "ttf-caladea", "ttf-liberation", "noto-fonts-cjk"]
+
 [verify]
 bins = []
 

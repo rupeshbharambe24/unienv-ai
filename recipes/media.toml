@@ -12,6 +12,12 @@ brew = ["ffmpeg", "imagemagick"]
 [system.debian]
 apt = ["ffmpeg", "imagemagick"]
 
+[system.fedora]
+dnf = ["ffmpeg-free", "ImageMagick"]
+
+[system.arch]
+pacman = ["ffmpeg", "imagemagick"]
+
 [verify]
 bins = ["ffmpeg", "magick"]
 

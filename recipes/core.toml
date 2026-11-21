@@ -11,6 +11,12 @@ brew = ["uv", "node", "ripgrep", "jq"]
 [system.debian]
 apt = ["nodejs", "npm", "ripgrep", "jq"]
 
+[system.fedora]
+dnf = ["nodejs", "npm", "ripgrep", "jq"]
+
+[system.arch]
+pacman = ["nodejs", "npm", "ripgrep", "jq"]
+
 [verify]
 bins = ["uv", "node", "rg", "jq"]
 
