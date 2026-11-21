@@ -1338,12 +1338,20 @@ def mcp_handshake(timeout: float = 15) -> tuple[bool, str, float]:
         return False, f"{type(e).__name__}: {e}", time.monotonic() - start
 
 
+def _is_homebrew_install() -> bool:
+    return "/Cellar/unienv/" in Path(__file__).resolve().as_posix()
+
+
 def cmd_update(args) -> int:
     """Download the latest UniEnv, replace ~/.unienv/share, then re-run install with the new code."""
     import tarfile
     import tempfile
     import urllib.error
     import urllib.request
+
+    if _is_homebrew_install():
+        info("UniEnv was installed via Homebrew; update with: brew upgrade unienv")
+        return 0
 
     share = UNIENV_HOME / "share"
     if share.is_symlink():
