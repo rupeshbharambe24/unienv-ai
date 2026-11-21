@@ -154,6 +154,7 @@ It should use `ue-py`, `pdftotext` and `soffice-safe` directly, with no virtuale
 | `fonts` | opt-in | Carlito, Caladea, Liberation, Noto CJK (so LibreOffice renders match Word) |
 | `latex` | opt-in | Tectonic (`tectonic paper.tex` compiles LaTeX to PDF and downloads TeX packages on demand) |
 | `ml` | opt-in | scikit-learn, scipy, xgboost, lightgbm, imbalanced-learn, joblib (`libomp` / `libgomp1`) |
+| `speech` | opt-in | faster-whisper (CTranslate2, no PyTorch) + ffmpeg for local audio/video transcription |
 
 Each battery is a small, declarative [TOML recipe](recipes/office.toml). **Adding one is the easiest way to contribute**: LaTeX, browsers, diagrams, GIS, audio… see [CONTRIBUTING.md](CONTRIBUTING.md#writing-a-recipe).
 
