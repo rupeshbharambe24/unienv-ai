@@ -931,6 +931,148 @@ def cmd_sync(args) -> int:
     return 0
 
 
+def _ver_tuple(v: str) -> tuple[int, ...] | None:
+    # Complex versions require a full PEP 440 / npm parser. Never guess.
+    if not re.fullmatch(r"\d+(?:\.\d+)*", v):
+        return None
+    parts = [int(n) for n in v.split(".")]
+    while len(parts) > 1 and parts[-1] == 0:
+        parts.pop()
+    return tuple(parts)
+
+
+def _version_matches(installed: str, op: str, target: str) -> bool | None:
+    iv = _ver_tuple(installed)
+    wildcard = target.endswith(".*")
+    tv = _ver_tuple(target[:-2] if wildcard else target)
+    if iv is None or tv is None:
+        return None
+    if wildcard:
+        if op not in ("==", "!="):
+            return None
+        prefix = tuple(int(n) for n in target[:-2].split("."))
+        values = tuple(int(n) for n in installed.split("."))
+        result = values[: len(prefix)] == prefix
+        return result if op == "==" else not result
+    if op in ("==", "=", "==="):
+        return iv == tv
+    if op == "!=":
+        return iv != tv
+    if op == ">=":
+        return iv >= tv
+    if op == "<=":
+        return iv <= tv
+    if op == ">":
+        return iv > tv
+    if op == "<":
+        return iv < tv
+    raw = [int(n) for n in target.split(".")]
+    if op == "~=":
+        if len(raw) < 2:
+            return None
+        upper = tuple(raw[:-2] + [raw[-2] + 1])
+        return tv <= iv < upper
+    if op == "~":
+        upper = (raw[0] + 1,) if len(raw) == 1 else (raw[0], raw[1] + 1)
+        return tv <= iv < upper
+    if op == "^":
+        if len(raw) < 3:
+            return None
+        while len(raw) < 3:
+            raw.append(0)
+        index = next((i for i, n in enumerate(raw) if n), len(raw) - 1)
+        upper = tuple(raw[:index] + [raw[index] + 1])
+        return tv <= iv < upper
+    return None
+
+
+def _installed_versions(kind: str, pkgs: list[str]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    if MANIFEST_FILE.exists():
+        with contextlib.suppress(OSError, json.JSONDecodeError, KeyError, TypeError):
+            m = json.loads(MANIFEST_FILE.read_text())
+            raw = m.get(kind, {}).get("packages", {}) or {}
+            out.update({(norm(k) if kind == "python" else k): v for k, v in raw.items() if v})
+    if kind == "python":
+        for k, v in python_packages().items():
+            if v:
+                out[k] = v
+    elif kind == "node":
+        for k, v in node_packages(pkgs).items():
+            if v:
+                out[k] = v
+    return out
+
+
+def _spec_satisfied(
+    kind: str,
+    spec: str,
+    manifest_pkgs: dict[str, str],
+    configured_specs: list[str] | None = None,
+) -> tuple[bool | None, str | None]:
+    if kind == "python":
+        name = py_name(spec)
+        installed = manifest_pkgs.get(name)
+        m = re.match(r"^[A-Za-z0-9_.-]+(?:\[([^\]]+)\])?\s*(.*)$", spec.strip().split(";", 1)[0])
+        extras_str, ver_part = (m.group(1), m.group(2).strip()) if m else (None, "")
+        if not extras_str and not ver_part:
+            return True, installed
+        if extras_str:
+            req_extras = {e.strip().lower() for e in extras_str.split(",") if e.strip()}
+            have_extras: set[str] = set()
+            for cs in configured_specs or []:
+                if py_name(cs) == name:
+                    em = re.search(r"\[([^\]]+)\]", cs)
+                    if em:
+                        have_extras.update(e.strip().lower() for e in em.group(1).split(",") if e.strip())
+            if not req_extras.issubset(have_extras):
+                return None, installed
+        if ver_part:
+            if not installed:
+                return None, None
+            matches = []
+            for clause in (c.strip() for c in ver_part.split(",") if c.strip()):
+                cm = re.fullmatch(r"(===|==|!=|~=|>=|<=|>|<)\s*(.+)", clause)
+                matches.append(_version_matches(installed, cm.group(1), cm.group(2).strip()) if cm else None)
+            if None in matches:
+                return None, installed
+            return all(matches), installed
+        return True, installed
+    if kind == "node":
+        name = node_name(spec)
+        installed = manifest_pkgs.get(name)
+        ver = node_version(spec)
+        if ver in ("latest", "*"):
+            return True, installed
+        if not installed:
+            return None, None
+        if re.fullmatch(r"\d+(?:\.\d+){0,1}", ver):
+            prefix = tuple(int(n) for n in ver.split("."))
+            iv = _ver_tuple(installed)
+            if iv is None:
+                return None, installed
+            padded = iv + (0,) * max(0, len(prefix) - len(iv))
+            return padded[: len(prefix)] == prefix, installed
+        clauses = [c.strip() for c in ver.split() if c.strip()]
+        matches = []
+        for clause in clauses:
+            cm = re.fullmatch(r"(\^|~|>=|<=|>|<|=)?\s*(\d+(?:\.\d+)*)", clause)
+            if not cm:
+                matches.append(None)
+                continue
+            op = cm.group(1) or "=="
+            ver_str = cm.group(2)
+            n_parts = len(ver_str.split("."))
+            if n_parts != 3 and not (op == "~" and n_parts == 2 and len(clauses) == 1):
+                matches.append(None)
+            else:
+                matches.append(_version_matches(installed, op, ver_str))
+        if None in matches:
+            return None, installed
+        return all(matches), installed
+    return True, manifest_pkgs.get(spec)
+
+
 def cmd_need(args) -> int:
     recipes_all = load_recipes()
     state = load_state(recipes_all)
@@ -943,6 +1085,27 @@ def cmd_need(args) -> int:
 
     key = {"python": py_name, "node": node_name}.get(kind, lambda s: s)
     present = {key(p) for p in w[kind]}
+    already = [p for p in pkgs if key(p) in present]
+    constrained = [
+        p
+        for p in already
+        if (kind == "python" and ("[" in p or re.search(r"[<>=!~]", p)))
+        or (kind == "node" and node_version(p) not in ("latest", "*"))
+    ]
+    if constrained and kind in ("python", "node"):
+        manifest_pkgs = _installed_versions(kind, w[kind] + already)
+        unsatisfied = False
+        for p in constrained:
+            ok, inst_ver = _spec_satisfied(kind, p, manifest_pkgs, w[kind])
+            if ok is False:
+                ver_label = f" {inst_ver}" if inst_ver else ""
+                warn(
+                    f"{key(p)}{ver_label} is installed; `{p}` isn't satisfied. "
+                    "Change the pin with `unienv upgrade` (#27)"
+                )
+                unsatisfied = True
+        if unsatisfied:
+            return 1
     new = [p for p in pkgs if key(p) not in present]
     if not new:
         info(f"✓ already available: {', '.join(pkgs)}")
