@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import time
+import tempfile
 import tomllib
 from pathlib import Path
 
@@ -1190,6 +1191,180 @@ def cmd_list(args) -> int:
     return 0
 
 
+def _toml_list(items: list[str]) -> str:
+    return "[" + ", ".join(json.dumps(str(x)) for x in items) + "]"
+
+
+def render_export_toml(state: dict) -> str:
+    batteries = list(state.get("batteries", []))
+    exclude = list(state.get("options", {}).get("exclude", []))
+    extras = state.get("extras", {})
+    lines = [
+        "# Exported by `unienv export`; restore with `unienv import <file>`.",
+        'schema = "unienv/env/v0"',
+        f"batteries = {_toml_list(batteries)}",
+        "",
+        "[options]",
+        f"exclude = {_toml_list(exclude)}",
+        "",
+        "[extras]",
+    ]
+    for kind in ("python", "node", "brew", "cask", "apt"):
+        lines.append(f"{kind} = {_toml_list(list(extras.get(kind, [])))}")
+
+    return "\n".join(lines) + "\n"
+
+
+def validate_env_spec(doc: dict, recipes_all: dict) -> list[str]:
+    problems = []
+    if doc.get("schema") != "unienv/env/v0":
+        problems.append('schema must be "unienv/env/v0"')
+    batteries = doc.get("batteries", [])
+    if not isinstance(batteries, list) or not all(isinstance(x, str) for x in batteries):
+        problems.append("batteries must be a list of strings")
+    else:
+        bad = [b for b in batteries if b not in recipes_all]
+        if bad:
+            problems.append(f"unknown batteries: {', '.join(bad)}")
+    options = doc.get("options", {})
+    if not isinstance(options, dict):
+        problems.append("[options] must be a table")
+    else:
+        exc = options.get("exclude", [])
+        if not isinstance(exc, list) or not all(isinstance(x, str) for x in exc):
+            problems.append("[options].exclude must be a list of strings")
+    extras = doc.get("extras", {})
+    if not isinstance(extras, dict):
+        problems.append("[extras] must be a table")
+    else:
+        for k, v in extras.items():
+            if k not in ("python", "node", "brew", "cask", "apt"):
+                problems.append(f"unknown [extras] key: {k}")
+            elif not isinstance(v, list) or not all(isinstance(x, str) for x in v):
+                problems.append(f"[extras].{k} must be a list of strings")
+            elif any(not _valid_import_package(k, package) for package in v):
+                problems.append(f"[extras].{k} contains an unsafe or unsupported package specification")
+    return problems
+
+
+def cmd_export(args) -> int:
+    recipes_all = load_recipes()
+    state = load_state(recipes_all)
+    sys.stdout.write(render_export_toml(state))
+    return 0
+
+
+def _valid_import_package(kind: str, value: str) -> bool:
+    if kind == "python":
+        return bool(
+            re.fullmatch(
+                r"[A-Za-z0-9][A-Za-z0-9_.-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:[<>=!~][A-Za-z0-9.*+!,<>=~_-]+)?", value
+            )
+        )
+    if kind == "node":
+        return bool(
+            re.fullmatch(r"(?:@[A-Za-z0-9_.-]+/)?[A-Za-z0-9][A-Za-z0-9_.-]*(?:@[A-Za-z0-9.^~*<>=|_-]+)?", value)
+        )
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9+_.@/-]*", value))
+
+
+def cmd_import(args) -> int:
+    recipes_all = load_recipes()
+    try:
+        raw = sys.stdin.read() if args.file == "-" else Path(args.file).read_text(encoding="utf-8")
+        doc = tomllib.loads(raw)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        die(f"invalid environment file {args.file!r}: {exc}")
+    problems = validate_env_spec(doc, recipes_all)
+    if problems:
+        die(f"invalid environment file {args.file!r}: " + "; ".join(problems))
+    if "locks" in doc:
+        warn("Imported lock hashes are informational only and ignored; package resolution is platform-specific.")
+    previous = load_state(recipes_all)
+    state = json.loads(json.dumps(previous))
+    state["batteries"] = [b for b in uniq(doc.get("batteries", [])) if not recipes_all[b].get("always")]
+    state["options"]["exclude"] = uniq(doc.get("options", {}).get("exclude", []))
+    for kind in ("python", "node", "brew", "cask", "apt"):
+        state["extras"][kind] = uniq(doc.get("extras", {}).get(kind, []))
+    info("Import plan:")
+    info("  batteries: " + ", ".join(state["batteries"]))
+    for kind, packages in state["extras"].items():
+        if packages:
+            info(f"  {kind}: {', '.join(packages)}")
+    if not args.yes:
+        try:
+            confirmed = input("Apply this environment? [y/N] ").strip().lower() in ("y", "yes")
+        except EOFError:
+            confirmed = False
+        if not confirmed:
+            info("Import cancelled; no state changed.")
+            return 1
+    tracked = [
+        STATE_FILE,
+        PY_DIR / "pyproject.toml",
+        PY_DIR / "uv.lock",
+        PY_DIR / ".python-version",
+        NODE_DIR / "package.json",
+        NODE_DIR / "package-lock.json",
+    ]
+    saved = {path: path.read_bytes() if path.exists() else None for path in tracked}
+    dirs = {path: os.path.lexists(path) for path in (PY_DIR / ".venv", NODE_DIR / "node_modules")}
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    backup = Path(tempfile.mkdtemp(prefix="import-", dir=BACKUP_DIR))
+    for index, (path, content) in enumerate(saved.items()):
+        if content is not None:
+            (backup / str(index)).write_bytes(content)
+
+    def restore_files():
+        for path, content in saved.items():
+            if content is None:
+                if path.exists():
+                    path.unlink()
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content)
+        for path, existed in dirs.items():
+            if not existed and os.path.lexists(path):
+                if path.is_symlink():
+                    path.unlink()
+                else:
+                    shutil.rmtree(path)
+
+    try:
+        save_state(state)
+        result = cmd_install(
+            argparse.Namespace(
+                batteries=None,
+                add=None,
+                exclude=None,
+                no_system=args.no_system,
+                no_wire=args.no_wire,
+                all_agents=False,
+                yes=args.yes,
+            )
+        )
+        if result:
+            raise RuntimeError(f"installation returned {result}")
+    except (Exception, SystemExit, KeyboardInterrupt) as exc:
+        warn(f"import failed ({exc}); rolling back")
+        restore_files()
+        try:
+            wanted_before = wanted(active_recipes(recipes_all, previous), previous)
+            if saved[PY_DIR / "pyproject.toml"] is not None:
+                install_python(wanted_before["python"])
+            if saved[NODE_DIR / "package.json"] is not None:
+                install_node(wanted_before["node"], require_npm=True)
+            do_sync(previous, recipes_all, wire=not args.no_wire)
+        except (Exception, SystemExit, KeyboardInterrupt) as repair_error:
+            warn(f"rollback repair failed ({repair_error}); run unienv install to repair")
+        finally:
+            restore_files()
+        return 1
+    log_event(event="import", batteries=state["batteries"])
+    info("Imported environment.")
+    return 0
+
+
 def cmd_status(args) -> int:
     """`unienv` with no arguments: a one-screen overview."""
     info(_c("1;36", "UniEnv AI") + f" {VERSION}  " + _c("2", "one always-ready environment for every AI tool"))
@@ -1842,6 +2017,16 @@ docs: https://github.com/rupeshbharambe24/unienv-ai""",
     s.add_argument("--json", action="store_true", help="print manifest.json")
     s.set_defaults(fn=cmd_list)
 
+    s = sub.add_parser("export", help="export batteries, excludes and extras as portable TOML")
+    s.set_defaults(fn=cmd_export)
+
+    s = sub.add_parser("import", help="restore an environment exported with `unienv export`")
+    s.add_argument("file", help="path to exported TOML file (or '-' for stdin)")
+    s.add_argument("--no-system", action="store_true", help="skip Homebrew/apt packages")
+    s.add_argument("--no-wire", action="store_true", help="don't edit shell startup files")
+    s.add_argument("-y", "--yes", action="store_true", help="allow sudo apt-get on Linux")
+    s.set_defaults(fn=cmd_import)
+
     s = sub.add_parser("wire", help="(re)write shell startup blocks; --gui sets the macOS GUI PATH")
     s.add_argument("--gui", action="store_true", help="experimental: set launchd PATH for desktop apps")
     s.set_defaults(fn=cmd_wire)
@@ -1876,7 +2061,7 @@ docs: https://github.com/rupeshbharambe24/unienv-ai""",
 
     args = p.parse_args(argv)
     mutating = (
-        args.cmd in ("install", "need", "sync", "uninstall")
+        args.cmd in ("install", "import", "need", "sync", "uninstall")
         or (args.cmd == "upgrade" and not args.dry_run)
         or (args.cmd == "doctor" and args.fix)
     )
