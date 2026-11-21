@@ -23,6 +23,13 @@ Run `unienv sync --all-agents` to write instruction files even for tools that ar
 
 **Claude Code** reads `CLAUDE.md`, not `AGENTS.md`, when both exist, so UniEnv writes to `CLAUDE.md`. Its Bash tool runs `zsh -c` (or your shell) per command, so `~/.zshenv` wiring is what makes tools visible. Restart Claude Code after installing so it re-reads its environment and skills.
 
+You can also install UniEnv as a **Claude Code plugin**, which bundles the `unienv` skill (reading `~/.unienv/manifest.json`) and registers the `unienv` MCP server (`~/.unienv/bin/unienv mcp`) in a single step:
+
+```text
+/plugin marketplace add rupeshbharambe24/unienv-ai
+/plugin install unienv@unienv
+```
+
 **Codex CLI** runs commands through a login shell by default, which reads `~/.profile` (or `~/.bash_profile`). In `workspace-write` sandbox mode, network access is off by default. `unienv need` from inside Codex may need approval to reach PyPI or Homebrew.
 
 **Gemini CLI** loads `~/.gemini/GEMINI.md` as global context.

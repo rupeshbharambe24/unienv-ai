@@ -1,0 +1,14 @@
+{
+  "name": "unienv",
+  "owner": {
+    "name": "Rupesh Bharambe",
+    "url": "https://github.com/rupeshbharambe24"
+  },
+  "plugins": [
+    {
+      "name": "unienv",
+      "source": "./plugins/unienv",
+      "description": "One always-ready environment shared by every AI tool: pre-installed Python, Node, Office, PDF, OCR and data tools plus MCP server."
+    }
+  ]
+}
