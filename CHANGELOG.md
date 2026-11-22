@@ -9,6 +9,11 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 - `unienv update` on Python 3.11.0–3.11.3, which lacks tar extraction filters, now validates the download itself: only regular files and folders are extracted (links and devices are rejected), and permissions are normalized like Python's `data` filter. By @KunjMaheshwari in #102. (#66)
 
 ### Added
+- Fedora (dnf) and Arch Linux (pacman) system package backends, with per-package retries on Fedora. RHEL clones, Oracle Linux and Amazon Linux are not treated as Fedora (they need EPEL). By @KunjMaheshwari in #110. (#7)
+- `unienv remove <pkg> [--node|--bin|--cask] [-y]` removes a package added with `unienv need`. It never uninstalls a package a battery still needs, and before removing system packages it checks with `apt-get -s` that apt wouldn't take anything else with it. By @KunjMaheshwari in #105. (#26)
+- `unienv sandbox print|install --tool claude|codex|seatbelt` adds sandbox allow-rules so agents can write to `~/.unienv`. Codex's `config.toml` is edited in place (comments and formatting kept, result verified), and `uninstall` removes only what UniEnv added. By @KunjMaheshwari in #113. (#37)
+- Claude Code plugin: `/plugin marketplace add rupeshbharambe24/unienv-ai`, then `/plugin install unienv@unienv`, adds the UniEnv skill and MCP server. It never runs the installer itself. By @KunjMaheshwari in #124. (#40)
+- Docker image (`ghcr.io/rupeshbharambe24/unienv`) and a Dev Container Feature (`ghcr.io/rupeshbharambe24/unienv-features/unienv`), published on each release, for cloud agents and Dev Containers. By @KunjMaheshwari in #129. (#41)
 - MCP server: clients can cancel running and queued tool calls, pings are answered during long calls, and long calls send a progress heartbeat every 10 s. Package installs can't be cancelled, so their rollback always runs. By @KunjMaheshwari in #131. (#32)
 - MCP image content for document reads, PDF renders and generated charts, with signature validation, a consistent 512 KB image limit, and a shared changed-file scan. By @KunjMaheshwari in #128. (#31)
 - `unienv mcp install` also configures VS Code, Zed, Windsurf and LM Studio. If Zed's `settings.json` has comments, it prints the snippet to paste instead of editing the file. By @KunjMaheshwari in #121. (#30)
@@ -24,6 +29,7 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 - CI: unit tests for the MCP helpers, a check that a release tag matches the version in all three files, and a weekly job that runs the LibreOffice conversions. By @KunjMaheshwari in #106. (#74)
 
 ### Fixed
+- `unienv need` checks version specifiers and extras against what's already installed: a request the installed version doesn't satisfy fails with a clear message, and specs it can't check fall back to the old behaviour. By @KunjMaheshwari in #99. (#64)
 - A failed `unienv need` now rolls back completely: new files are deleted, `node_modules` is restored, and the reinstall is guarded. By @KunjMaheshwari in #96. (#20)
 - `unienv need --bin`/`--cask` fails and rolls back on a platform with no system package backend, instead of reporting success. By @KunjMaheshwari in #91. (#18)
 - UniEnv refuses to edit a file whose UniEnv block markers are orphaned or duplicated, instead of guessing, and `unienv doctor` reports such files. By @KunjMaheshwari in #92. (#56)
