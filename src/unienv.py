@@ -1726,6 +1726,9 @@ def cmd_status(args) -> int:
 
 
 REPO_TARBALL = "https://github.com/rupeshbharambe24/unienv-ai/archive/{ref}.tar.gz"
+LATEST_RELEASE_API = "https://api.github.com/repos/rupeshbharambe24/unienv-ai/releases/latest"
+RELEASE_TARBALL = "https://github.com/rupeshbharambe24/unienv-ai/releases/download/{ref}/unienv-ai-{ref}.tar.gz"
+RELEASE_SHA256SUMS = "https://github.com/rupeshbharambe24/unienv-ai/releases/download/{ref}/SHA256SUMS"
 
 
 # ── MCP server for desktop apps ─────────────────────────────────────────────
@@ -1929,6 +1932,58 @@ def mcp_handshake(timeout: float = 15) -> tuple[bool, str, float]:
         return False, f"{type(e).__name__}: {e}", time.monotonic() - start
 
 
+def _version_tuple(ver: str) -> tuple[int, ...]:
+    cleaned = ver.lstrip("v").split("-", 1)[0]
+    return tuple(int(p) if p.isdigit() else 0 for p in cleaned.split("."))
+
+
+def _latest_release_tag() -> str | None:
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(LATEST_RELEASE_API, headers={"Accept": "application/vnd.github+json"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        tag = data.get("tag_name")
+        return str(tag) if tag else None
+    except (urllib.error.URLError, OSError, json.JSONDecodeError, ValueError):
+        return None
+
+
+def _is_release_tag(ref: str) -> bool:
+    return bool(re.fullmatch(r"v\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.]+)?", ref))
+
+
+def _fetch_release_sha256(ref: str) -> str:
+    import urllib.error
+    import urllib.request
+
+    url = RELEASE_SHA256SUMS.format(ref=ref)
+    target_name = f"unienv-ai-{ref}.tar.gz"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            text = resp.read().decode("utf-8")
+    except (urllib.error.HTTPError, urllib.error.URLError, OSError, UnicodeDecodeError) as e:
+        die(
+            f"could not download UniEnv ref {ref!r} ({e}); "
+            "check the branch or tag name, or pass `--sha256 <digest>` / `--ref main` to override"
+        )
+    for line in text.splitlines():
+        parts = line.strip().split()
+        if len(parts) < 2:
+            continue
+        digest = parts[0].lower()
+        name = parts[-1].lstrip("*")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) and name == target_name:
+            return digest
+    die(
+        f"could not verify SHA256SUMS for release {ref!r} ({target_name} entry missing); "
+        "pass `--sha256 <digest>` or `--ref main` to override"
+    )
+    return ""
+
+
 def _safe_extract_tar(tar: tarfile.TarFile, dest: Path) -> None:
     """Extract a tarball safely on both Python 3.11.4+ (filter='data') and 3.11.0-3.11.3."""
     dest_path = Path(dest).resolve()
@@ -1959,15 +2014,46 @@ def _safe_extract_tar(tar: tarfile.TarFile, dest: Path) -> None:
 
 def cmd_update(args) -> int:
     """Download the latest UniEnv, replace ~/.unienv/share, then re-run install with the new code."""
+    import hashlib
     import tempfile
     import urllib.error
     import urllib.request
 
+    if getattr(args, "check", False):
+        latest = _latest_release_tag()
+        if not latest:
+            die("could not query the latest UniEnv release tag")
+        if _version_tuple(latest) > _version_tuple(VERSION):
+            info(f"A newer version is available: {latest} (installed: v{VERSION}). Run `unienv update`.")
+        else:
+            info(f"UniEnv v{VERSION} is up to date (latest: {latest}).")
+        return 0
+
     share = UNIENV_HOME / "share"
     if share.is_symlink():
         die(f"{share} links to a development checkout; update it with `git pull` instead.")
-    no_wire = args.no_wire or not load_state(load_recipes()).get("options", {}).get("wire_shells", True)
-    url = REPO_TARBALL.format(ref=args.ref)
+    ref = getattr(args, "ref", None)
+    explicit_ref = bool(ref)
+    if not ref:
+        ref = _latest_release_tag()
+        if not ref:
+            die(
+                "could not resolve the latest UniEnv release tag; "
+                "pass `unienv update --ref main` to install from main without release verification"
+            )
+    is_release = not explicit_ref or _is_release_tag(ref)
+    explicit_sha = getattr(args, "sha256", None)
+    expected_sha = explicit_sha
+    if not expected_sha and is_release:
+        expected_sha = _fetch_release_sha256(ref)
+    if not is_release and not expected_sha:
+        warn(f"installing {ref} without checksum verification")
+
+    no_wire = getattr(args, "no_wire", False) or not load_state(load_recipes()).get("options", {}).get(
+        "wire_shells", True
+    )
+    use_release_asset = is_release and not explicit_sha
+    url = RELEASE_TARBALL.format(ref=ref) if use_release_asset else REPO_TARBALL.format(ref=ref)
     step(f"Downloading {url}")
     with tempfile.TemporaryDirectory() as tmp:
         archive = Path(tmp) / "unienv.tar.gz"
@@ -1975,20 +2061,52 @@ def cmd_update(args) -> int:
             with urllib.request.urlopen(url) as resp, archive.open("wb") as out:
                 shutil.copyfileobj(resp, out)
         except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
-            die(f"could not download UniEnv ref {args.ref!r} ({e}); check the branch or tag name")
-        with tarfile.open(archive) as tar:
-            _safe_extract_tar(tar, Path(tmp))
-        src = next(Path(tmp).glob("unienv-ai-*"))
+            die(f"could not download UniEnv ref {ref!r} ({e}); check the branch or tag name")
+        if expected_sha:
+            actual_sha = hashlib.sha256(archive.read_bytes()).hexdigest().lower()
+            if actual_sha != expected_sha.lower():
+                die(f"SHA-256 mismatch for {ref}: expected {expected_sha.lower()}, got {actual_sha}")
+
+        prev_share = UNIENV_HOME / "share.prev"
         new_share = UNIENV_HOME / "share.new"
+        shutil.rmtree(prev_share, ignore_errors=True)
         shutil.rmtree(new_share, ignore_errors=True)
-        new_share.mkdir(parents=True)
-        for part in ("src", "recipes", "templates", "shims"):
-            shutil.copytree(src / part, new_share / part)
-    shutil.rmtree(share, ignore_errors=True)
-    new_share.rename(share)
-    step("Re-installing with the new version")
-    cli = share / "src/unienv.py"
-    return subprocess.call([sys.executable, str(cli), "install"] + (["--no-wire"] if no_wire else []))
+        if share.exists():
+            shutil.copytree(share, prev_share)
+        install_args = ["install"] + (["--no-wire"] if no_wire else [])
+        try:
+            with tarfile.open(archive) as tar:
+                _safe_extract_tar(tar, Path(tmp))
+            src = next(Path(tmp).glob("unienv-ai-*"))
+            new_share.mkdir(parents=True)
+            for part in ("src", "recipes", "templates", "shims"):
+                shutil.copytree(src / part, new_share / part)
+            shutil.rmtree(share, ignore_errors=True)
+            new_share.rename(share)
+            step("Re-installing with the new version")
+            cli = share / "src/unienv.py"
+            rc = subprocess.call([sys.executable, str(cli), *install_args])
+            if rc != 0:
+                raise RuntimeError(f"install exited with code {rc}")
+        except BaseException as e:
+            warn(f"update failed ({e}); restoring previous share from {prev_share}")
+            shutil.rmtree(new_share, ignore_errors=True)
+            if prev_share.exists():
+                shutil.rmtree(share, ignore_errors=True)
+                prev_share.rename(share)
+                old_cli = share / "src/unienv.py"
+                if old_cli.exists():
+                    try:
+                        restore_rc = subprocess.call([sys.executable, str(old_cli), *install_args])
+                        if restore_rc != 0:
+                            warn(f"rollback restore exited with code {restore_rc}; run unienv install to repair")
+                    except BaseException as restore_err:
+                        warn(f"rollback restore failed ({restore_err}); run unienv install to repair")
+            if not isinstance(e, Exception):
+                raise
+            return 1
+        shutil.rmtree(prev_share, ignore_errors=True)
+        return 0
 
 
 # ── doctor ──────────────────────────────────────────────────────────────────
@@ -2858,7 +2976,9 @@ docs: https://github.com/rupeshbharambe24/unienv-ai""",
     s.set_defaults(fn=cmd_status)
 
     s = sub.add_parser("update", help="download the latest UniEnv and re-install with it")
-    s.add_argument("--ref", default="main", help="branch or tag to install (default: main)")
+    s.add_argument("--ref", default=None, help="branch or tag to install (default: latest release, or main)")
+    s.add_argument("--sha256", default=None, help="expected SHA-256 checksum of the downloaded tarball")
+    s.add_argument("--check", action="store_true", help="check whether a newer UniEnv release is available")
     s.add_argument("--no-wire", action="store_true")
     s.set_defaults(fn=cmd_update)
 

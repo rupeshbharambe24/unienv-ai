@@ -1,3 +1,4 @@
+import hashlib
 import pathlib
 import subprocess
 import tarfile
@@ -32,13 +33,14 @@ class InstallShTests(unittest.TestCase):
 
             tarball = tmp_path / "repo.tar.gz"
             _make_mock_archive(tarball, "DOWNLOADED_TARBALL_USED")
+            sha = hashlib.sha256(tarball.read_bytes()).hexdigest()
 
             fake_bin = tmp_path / "bin"
             fake_bin.mkdir()
             custom_uv_dir = tmp_path / "custom_uv"
             custom_uv_dir.mkdir()
 
-            # Mock curl: either serves the uv installer or the repo tarball
+            # Mock curl: serves the uv installer, latest release API, SHA256SUMS, or release asset tarball
             curl_script = fake_bin / "curl"
             curl_script.write_text(
                 "#!/usr/bin/env bash\n"
@@ -53,7 +55,13 @@ class InstallShTests(unittest.TestCase):
                 f'chmod +x "{custom_uv_dir}/uv"\n'
                 "EOF\n"
                 "      exit 0 ;;\n"
-                "    *github.com/rupeshbharambe24/unienv-ai/archive*)\n"
+                "    *api.github.com/repos/rupeshbharambe24/unienv-ai/releases/latest*)\n"
+                '      printf \'{"tag_name": "v0.3.0"}\\n\'\n'
+                "      exit 0 ;;\n"
+                "    *releases/download/v0.3.0/SHA256SUMS*)\n"
+                f'      printf "{sha}  unienv-ai-v0.3.0.tar.gz\\n"\n'
+                "      exit 0 ;;\n"
+                "    *releases/download/v0.3.0/unienv-ai-v0.3.0.tar.gz*|*github.com/rupeshbharambe24/unienv-ai/archive*)\n"
                 f'      printf "%s\\n" "$arg" > "{tmp_path / "download-url"}"\n'
                 f'      cat "{tarball}"\n'
                 "      exit 0 ;;\n"
@@ -90,6 +98,87 @@ class InstallShTests(unittest.TestCase):
             marker_file = pathlib.Path(env["UNIENV_HOME"]) / "ran_source.txt"
             self.assertTrue(marker_file.exists())
             self.assertEqual(marker_file.read_text(), "DOWNLOADED_TARBALL_USED")
+
+    def test_piped_install_fails_closed_on_missing_release_missing_checksum_missing_asset_or_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+            tarball = tmp_path / "repo.tar.gz"
+            _make_mock_archive(tarball, "SHOULD_NOT_RUN")
+            sha = hashlib.sha256(tarball.read_bytes()).hexdigest()
+
+            cases = [
+                ("release_lookup_fails", "", 1, "", 1, "", 1, "Could not resolve the latest UniEnv release tag"),
+                (
+                    "missing_sha256sums",
+                    '{"tag_name": "v0.3.0"}',
+                    0,
+                    "",
+                    1,
+                    "ok",
+                    0,
+                    "Could not download SHA256SUMS for release v0.3.0",
+                ),
+                (
+                    "missing_release_asset",
+                    '{"tag_name": "v0.3.0"}',
+                    0,
+                    f"{sha}  unienv-ai-v0.3.0.tar.gz",
+                    0,
+                    "",
+                    1,
+                    "Could not download release asset unienv-ai-v0.3.0.tar.gz",
+                ),
+                (
+                    "invalid_checksum",
+                    '{"tag_name": "v0.3.0"}',
+                    0,
+                    f"{'0' * 64}  unienv-ai-v0.3.0.tar.gz",
+                    0,
+                    "ok",
+                    0,
+                    "SHA-256 mismatch for unienv-ai-v0.3.0.tar.gz",
+                ),
+            ]
+            for name, api_out, api_rc, sums_out, sums_rc, asset_out, asset_rc, expected_err in cases:
+                with self.subTest(case=name):
+                    case_dir = tmp_path / name
+                    fake_bin = case_dir / "bin"
+                    fake_bin.mkdir(parents=True)
+                    curl_script = fake_bin / "curl"
+                    curl_script.write_text(
+                        "#!/usr/bin/env bash\n"
+                        'for arg in "$@"; do\n'
+                        '  case "$arg" in\n'
+                        "    *api.github.com/repos/rupeshbharambe24/unienv-ai/releases/latest*)\n"
+                        f"      printf '%s\\n' {api_out!r}; exit {api_rc} ;;\n"
+                        "    *releases/download/v0.3.0/SHA256SUMS*)\n"
+                        f"      printf '%s\\n' {sums_out!r}; exit {sums_rc} ;;\n"
+                        "    *releases/download/v0.3.0/unienv-ai-v0.3.0.tar.gz*)\n"
+                        f'      if [ {asset_rc} -eq 0 ]; then cat "{tarball}"; fi; exit {asset_rc} ;;\n'
+                        "  esac\n"
+                        "done\n"
+                        "exit 1\n"
+                    )
+                    curl_script.chmod(0o755)
+                    home_dir = case_dir / "home"
+                    home_dir.mkdir()
+                    unienv_home = case_dir / "unienv_home"
+                    proc = subprocess.run(
+                        ["bash", "-s", "--", "--no-system"],
+                        input=INSTALL_SH.read_text(),
+                        text=True,
+                        cwd=case_dir,
+                        env={
+                            "HOME": str(home_dir),
+                            "UNIENV_HOME": str(unienv_home),
+                            "PATH": f"{fake_bin}:/usr/bin:/bin",
+                        },
+                        capture_output=True,
+                        timeout=30,
+                    )
+                    self.assertNotEqual(proc.returncode, 0)
+                    self.assertIn(expected_err, proc.stderr)
+                    self.assertFalse((unienv_home / "ran_source.txt").exists())
 
     def test_file_execution_uses_local_checkout_and_xdg_bin_home_uv(self):
         with tempfile.TemporaryDirectory() as tmp:

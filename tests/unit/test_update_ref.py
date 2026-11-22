@@ -47,13 +47,19 @@ class UpdateRefTests(unittest.TestCase):
         )
 
     def test_cmd_update_succeeds_for_tag_ref(self):
+        import hashlib
+
         tar_bytes = _make_tarball_bytes("0.2.1")
+        sha = hashlib.sha256(tar_bytes).hexdigest()
         requested_urls = []
 
         @contextlib.contextmanager
         def fake_urlopen(url, *args, **kwargs):
             requested_urls.append(url)
-            yield io.BytesIO(tar_bytes)
+            if "SHA256SUMS" in str(url):
+                yield io.BytesIO(f"{sha}  unienv-ai-v0.2.1.tar.gz\n".encode("utf-8"))
+            else:
+                yield io.BytesIO(tar_bytes)
 
         with tempfile.TemporaryDirectory() as tmp:
             home = pathlib.Path(tmp)
@@ -67,7 +73,10 @@ class UpdateRefTests(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertEqual(
                 requested_urls,
-                ["https://github.com/rupeshbharambe24/unienv-ai/archive/v0.2.1.tar.gz"],
+                [
+                    "https://github.com/rupeshbharambe24/unienv-ai/releases/download/v0.2.1/SHA256SUMS",
+                    "https://github.com/rupeshbharambe24/unienv-ai/releases/download/v0.2.1/unienv-ai-v0.2.1.tar.gz",
+                ],
             )
             self.assertTrue((home / "share" / "src" / "unienv.py").exists())
             mock_call.assert_called_once()

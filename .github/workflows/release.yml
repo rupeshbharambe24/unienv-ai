@@ -37,10 +37,17 @@ jobs:
         run: |
           scripts/build-mcpb.sh
           npx -y @anthropic-ai/mcpb validate mcpb/manifest.json
-      - name: Attach unienv.mcpb to the release
+      - name: Generate release tarball and SHA256SUMS
+        run: |
+          mkdir -p dist
+          git archive --format=tar.gz --prefix="unienv-ai-${GITHUB_REF_NAME}/" -o "dist/unienv-ai-${GITHUB_REF_NAME}.tar.gz" "$GITHUB_REF_NAME"
+          (cd dist && sha256sum "unienv-ai-${GITHUB_REF_NAME}.tar.gz" unienv.mcpb > SHA256SUMS)
+      - name: Attach release assets and SHA256SUMS to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" dist/unienv.mcpb --clobber || gh release create "$GITHUB_REF_NAME" dist/unienv.mcpb --generate-notes
+        run: |
+          gh release upload "$GITHUB_REF_NAME" "dist/unienv-ai-${GITHUB_REF_NAME}.tar.gz" dist/unienv.mcpb dist/SHA256SUMS --clobber \
+            || gh release create "$GITHUB_REF_NAME" "dist/unienv-ai-${GITHUB_REF_NAME}.tar.gz" dist/unienv.mcpb dist/SHA256SUMS --generate-notes
 
   docker:
     needs: mcpb
