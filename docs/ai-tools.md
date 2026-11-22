@@ -62,6 +62,26 @@ unienv sandbox install --tool codex
 
 Package installation, upgrades, sync, and update need write access to UniEnv. Sandbox permissions do not provide network permission automatically, and organization-managed policy can override local settings.
 
+## Cloud agents, Docker & Dev Containers
+
+For cloud coding agents (Codex cloud, GitHub Copilot coding agent, containerized sandboxes) and VS Code Dev Containers:
+
+- **Docker image (`Dockerfile`)**: Published on each release tag as a multi-arch (`linux/amd64`, `linux/arm64`) image at `ghcr.io/rupeshbharambe24/unienv:<tag>` (built on `debian:bookworm-slim` with default batteries and `--all-agents` wiring `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, and `~/.config/opencode/AGENTS.md`):
+  ```bash
+  docker build -t unienv-ai .
+  docker run --rm -it unienv-ai unienv status
+  ```
+- **Dev Container Feature (`.devcontainer/unienv`)**: Published on each release tag to GHCR (`ghcr.io/rupeshbharambe24/unienv-features/unienv:0`) and pinned to the matching UniEnv release tag:
+  ```json
+  {
+    "features": {
+      "ghcr.io/rupeshbharambe24/unienv-features/unienv:0": {
+        "batteries": "office,pdf,data"
+      }
+    }
+  }
+  ```
+
 ## Adding a tool
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md#writing-an-agent-adapter). An adapter is a few lines in `agent_targets()` in `src/unienv.py`, plus links to the tool's official docs proving the paths.
