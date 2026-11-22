@@ -3,7 +3,7 @@ set -euo pipefail
 
 FEATURE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FEATURE_VERSION="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$FEATURE_DIR/devcontainer-feature.json" | head -n 1)"
-UNIENV_REF="${UNIENV_REF:-v${FEATURE_VERSION:-0.2.2}}"
+UNIENV_REF="${UNIENV_REF:-v${FEATURE_VERSION:-0.3.0}}"
 
 BATTERIES="${BATTERIES:-}"
 NOSYSTEM="${NOSYSTEM:-false}"

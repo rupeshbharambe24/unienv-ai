@@ -32,7 +32,7 @@ import tomllib
 from pathlib import Path
 
 SERVER_NAME = "unienv"
-SERVER_VERSION = "0.2.2"
+SERVER_VERSION = "0.3.0"
 PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]  # newest first
 
 HOME = Path.home()

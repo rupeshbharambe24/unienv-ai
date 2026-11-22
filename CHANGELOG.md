@@ -4,7 +4,12 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-22
+
+36 changes from the community: three security fixes, verified updates, Fedora and Arch Linux support, MCP install for VS Code, Zed, Windsurf and LM Studio, Windsurf, Cline and Roo Code adapters, a Claude Code plugin, a Docker image and Dev Container Feature, `unienv remove`, `unienv upgrade`, `unienv du`, and the `latex`, `ml` and `speech` batteries. Thank you @KunjMaheshwari, who wrote almost all of them, and @bfs2021!
+
 ### Security
+- `curl … | bash` and `unienv update` install the latest release by default and verify it against the release's `SHA256SUMS`, failing closed if the checksum list, the release asset or the digest doesn't match; a failed update rolls back to the previous version. Branches and commits (`--ref main`) still work, with a warning that they aren't verified. By @KunjMaheshwari in #108. (#28)
 - MCP safe mode: `UNIENV_MCP_MODE=readonly` blocks writes, `UNIENV_MCP_ALLOW_INSTALL` controls package installs, and `UNIENV_MCP_ROOTS` limits file access to the folders you list (arbitrary code execution is disabled under roots). Output paths that are dangling symlinks are refused, Pandoc conversions are sandboxed in safe mode, and the Desktop extension exposes these settings. By @KunjMaheshwari in #132. (#33)
 - `unienv update` on Python 3.11.0–3.11.3, which lacks tar extraction filters, now validates the download itself: only regular files and folders are extracted (links and devices are rejected), and permissions are normalized like Python's `data` filter. By @KunjMaheshwari in #102. (#66)
 
@@ -122,7 +127,8 @@ First public prototype.
 - Login bash on Linux skipped `~/.profile` when `~/.bash_profile` exists; both are now wired.
 - Homebrew's automatic `brew cleanup` no longer runs as a side effect of UniEnv installs.
 
-[Unreleased]: https://github.com/rupeshbharambe24/unienv-ai/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/rupeshbharambe24/unienv-ai/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.3.0
 [0.2.2]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.2.2
 [0.2.1]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.2.1
 [0.2.0]: https://github.com/rupeshbharambe24/unienv-ai/releases/tag/v0.2.0

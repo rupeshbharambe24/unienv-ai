@@ -1,6 +1,6 @@
 {
   "id": "unienv",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "name": "UniEnv AI",
   "documentationURL": "https://github.com/rupeshbharambe24/unienv-ai",
   "description": "Installs UniEnv AI (shared Python 3.12, Node, Office, PDF, OCR and data batteries) and wires shell startup and agent instruction files.",
