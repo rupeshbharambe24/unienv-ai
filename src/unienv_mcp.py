@@ -38,6 +38,16 @@ PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]  # 
 HOME = Path.home()
 UNIENV_HOME = Path(os.environ.get("UNIENV_HOME", HOME / ".unienv")).expanduser()
 BIN = UNIENV_HOME / "bin"
+
+
+def _bin_cmd(name: str) -> str:
+    if sys.platform == "win32":
+        cmd = BIN / f"{name}.cmd"
+        if cmd.exists():
+            return str(cmd)
+    return str(BIN / name)
+
+
 MANIFEST_FILE = UNIENV_HOME / "manifest.json"
 RECIPES_DIR = Path(__file__).resolve().parent.parent / "recipes"
 
@@ -551,7 +561,7 @@ def t_read_document(a: dict) -> str:
             raise ToolError(f"tesseract failed: {err.strip()[:500]}")
         return _with_images(cap(f"[OCR text of {path.name}]\n{out}", limit), imgs)
     code, out, err, _ = run(
-        [str(BIN / "ue-py"), *SAFE_PATH, "-m", "markitdown", str(path)], cwd=path.parent, timeout=180
+        [_bin_cmd("ue-py"), *SAFE_PATH, "-m", "markitdown", str(path)], cwd=path.parent, timeout=180
     )
     if code == 0 and out.strip():
         return cap(out, limit)
@@ -584,7 +594,7 @@ def t_convert_document(a: dict) -> str:
     out_dir.mkdir(parents=True, exist_ok=True)
     dest = free_name(out_dir / f"{src.stem}.{fmt}")
     ext = src.suffix.lower()
-    soffice = BIN / "soffice-safe"
+    soffice = Path(_bin_cmd("soffice-safe"))
 
     def via_soffice(input_path: Path, target_fmt: str) -> list[Path]:
         with tempfile.TemporaryDirectory(dir=tool_env()["TMPDIR"]) as tmp:
@@ -682,7 +692,7 @@ def t_run_python(a: dict) -> str | list[dict]:
         script = f.name
     try:
         code, out, err, secs = run(
-            [str(BIN / "ue-py"), *SAFE_PATH, script], cwd=cwd, timeout=a.get("timeout_s", DEFAULT_TIMEOUT)
+            [_bin_cmd("ue-py"), *SAFE_PATH, script], cwd=cwd, timeout=a.get("timeout_s", DEFAULT_TIMEOUT)
         )
     finally:
         os.unlink(script)
@@ -697,7 +707,7 @@ def t_run_python(a: dict) -> str | list[dict]:
 
 def allowed_tools() -> dict[str, str]:
     tools = {b: p for b, p in manifest().get("bins", {}).items() if p}
-    tools["ue-node"] = str(BIN / "ue-node")
+    tools["ue-node"] = _bin_cmd("ue-node")
     tools.pop("uv", None)  # environment management goes through install_package
     return tools
 
@@ -730,7 +740,7 @@ def t_install_package(a: dict) -> str:
     if not names or not all(re.fullmatch(r"[A-Za-z0-9@][A-Za-z0-9._\-/@\[\],<>=!~*^]*", n) for n in names):
         raise ToolError(f"invalid package name: {a['name']!r}")
     code, out, err, secs = run(
-        [str(BIN / "unienv"), "need", *flag, "--", *names], cwd=UNIENV_HOME, timeout=900, env=install_env()
+        [_bin_cmd("unienv"), "need", *flag, "--", *names], cwd=UNIENV_HOME, timeout=900, env=install_env()
     )
     text = (out + ("\n" + err if err.strip() else "")).strip()
     if code != 0:

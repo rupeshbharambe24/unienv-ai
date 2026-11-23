@@ -12,6 +12,10 @@ cask = ["font-carlito", "font-caladea", "font-liberation", "font-noto-sans-cjk"]
 [system.debian]
 apt = ["fonts-crosextra-carlito", "fonts-crosextra-caladea", "fonts-liberation2", "fonts-noto-cjk"]
 
+[system.windows]
+winget = []
+scoop = []
+
 [system.fedora]
 dnf = ["google-carlito-fonts", "google-crosextra-caladea-fonts", "liberation-fonts-all", "google-noto-sans-cjk-fonts"]
 

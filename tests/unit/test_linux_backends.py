@@ -20,6 +20,11 @@ def _result(cmd, stdout="", code=0):
 
 
 class LinuxPlatformKeyTest(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch.object(unienv, "IS_WIN", False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_detects_fedora_via_os_release(self):
         with tempfile.TemporaryDirectory() as tmp:
             os_rel = Path(tmp) / "os-release"

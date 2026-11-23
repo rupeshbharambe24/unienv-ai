@@ -141,6 +141,11 @@ Open your AI tool **outside any project** and ask:
 
 It should use `ue-py`, `pdftotext` and `soffice-safe` directly, with no virtualenv and no installs.
 
+
+### Windows
+
+`install.ps1` copies UniEnv files into `%USERPROFILE%\.unienv\share` without requiring Developer Mode or symlink privileges (including `--dev` from a local checkout), and refuses to overwrite an existing symlinked/junctioned `share` directory so its target is never modified. Both `.cmd` wrappers and Git Bash shims target the Windows Python environment, and `unienv uninstall` removes only the user `PATH` entry added by the installer.
+
 ## 🔋 Batteries
 
 | Battery | Default | What agents get |
@@ -289,6 +294,7 @@ UniEnv is free and open source. If it saves you time, please **[give it a star o
 ### Contributors
 
 Thank you to everyone who has helped build UniEnv AI: [@bfs2021](https://github.com/bfs2021), [@SantanDon](https://github.com/SantanDon), [@CyberKun](https://github.com/CyberKun), [@sanjanamg0](https://github.com/sanjanamg0) and [@KunjMaheshwari](https://github.com/KunjMaheshwari). Want to see your name here? Pick an [issue](https://github.com/rupeshbharambe24/unienv-ai/labels/good%20first%20issue).
+
 
 ## License
 

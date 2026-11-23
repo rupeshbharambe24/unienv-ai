@@ -16,6 +16,10 @@ brew = ["libomp"]
 [system.debian]
 apt = ["libgomp1"]
 
+[system.windows]
+winget = []
+scoop = []
+
 [system.fedora]
 dnf = ["libgomp"]
 

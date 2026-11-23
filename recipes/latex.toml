@@ -12,6 +12,10 @@ brew = ["tectonic"]
 [system.debian]
 apt = []
 
+[system.windows]
+winget = []
+scoop = ["tectonic"]
+
 [system.fedora]
 dnf = []
 

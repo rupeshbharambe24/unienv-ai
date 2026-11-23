@@ -16,6 +16,10 @@ brew = ["tesseract"]
 [system.debian]
 apt = ["tesseract-ocr"]
 
+[system.windows]
+winget = ["UB-Mannheim.TesseractOCR"]
+scoop = ["tesseract"]
+
 [system.fedora]
 dnf = ["tesseract"]
 

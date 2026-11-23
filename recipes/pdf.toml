@@ -16,6 +16,10 @@ brew = ["poppler", "qpdf", "ghostscript"]
 [system.debian]
 apt = ["poppler-utils", "qpdf", "ghostscript"]
 
+[system.windows]
+winget = ["oschwartz10612.Poppler", "qpdf.qpdf", "ArtifexSoftware.GhostScript"]
+scoop = ["poppler", "qpdf", "ghostscript"]
+
 [system.fedora]
 dnf = ["poppler-utils", "qpdf", "ghostscript"]
 

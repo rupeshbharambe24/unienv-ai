@@ -12,6 +12,10 @@ brew = ["ffmpeg", "imagemagick"]
 [system.debian]
 apt = ["ffmpeg", "imagemagick"]
 
+[system.windows]
+winget = ["Gyan.FFmpeg", "ImageMagick.ImageMagick"]
+scoop = ["ffmpeg", "imagemagick"]
+
 [system.fedora]
 dnf = ["ffmpeg-free", "ImageMagick"]
 

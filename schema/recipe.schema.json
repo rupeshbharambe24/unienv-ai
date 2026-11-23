@@ -4,7 +4,11 @@
   "title": "UniEnv recipe (unienv/recipe/v0)",
   "description": "A battery: a declarative list of what to install. Recipes never contain install scripts. See CONTRIBUTING.md#writing-a-recipe.",
   "type": "object",
-  "required": ["schema", "id", "summary"],
+  "required": [
+    "schema",
+    "id",
+    "summary"
+  ],
   "additionalProperties": false,
   "properties": {
     "schema": {
@@ -31,7 +35,10 @@
     },
     "maintainers": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^github:[A-Za-z0-9-]+$" },
+      "items": {
+        "type": "string",
+        "pattern": "^github:[A-Za-z0-9-]+$"
+      },
       "description": "GitHub handles, e.g. \"github:your-handle\"."
     },
     "license_note": {
@@ -43,8 +50,14 @@
       "additionalProperties": false,
       "description": "PyPI packages installed for ue-py.",
       "properties": {
-        "packages": { "$ref": "#/$defs/stringList", "description": "pip requirement specifiers, e.g. \"openpyxl>=3.1\"." },
-        "imports": { "$ref": "#/$defs/stringList", "description": "Modules `unienv doctor` imports to verify the install." }
+        "packages": {
+          "$ref": "#/$defs/stringList",
+          "description": "pip requirement specifiers, e.g. \"openpyxl>=3.1\"."
+        },
+        "imports": {
+          "$ref": "#/$defs/stringList",
+          "description": "Modules `unienv doctor` imports to verify the install."
+        }
       }
     },
     "node": {
@@ -52,8 +65,14 @@
       "additionalProperties": false,
       "description": "npm packages installed for ue-node.",
       "properties": {
-        "packages": { "$ref": "#/$defs/stringList", "description": "npm package names." },
-        "modules": { "$ref": "#/$defs/stringList", "description": "Modules `unienv doctor` requires to verify the install." }
+        "packages": {
+          "$ref": "#/$defs/stringList",
+          "description": "npm package names."
+        },
+        "modules": {
+          "$ref": "#/$defs/stringList",
+          "description": "Modules `unienv doctor` requires to verify the install."
+        }
       }
     },
     "system": {
@@ -66,8 +85,14 @@
           "additionalProperties": false,
           "description": "Homebrew.",
           "properties": {
-            "brew": { "$ref": "#/$defs/stringList", "description": "Homebrew formulae." },
-            "cask": { "$ref": "#/$defs/stringList", "description": "Homebrew casks." }
+            "brew": {
+              "$ref": "#/$defs/stringList",
+              "description": "Homebrew formulae."
+            },
+            "cask": {
+              "$ref": "#/$defs/stringList",
+              "description": "Homebrew casks."
+            }
           }
         },
         "debian": {
@@ -75,7 +100,47 @@
           "additionalProperties": false,
           "description": "apt.",
           "properties": {
-            "apt": { "$ref": "#/$defs/stringList", "description": "apt packages." }
+            "apt": {
+              "$ref": "#/$defs/stringList",
+              "description": "apt packages."
+            }
+          }
+        },
+        "windows": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "winget / Scoop.",
+          "properties": {
+            "winget": {
+              "$ref": "#/$defs/stringList",
+              "description": "winget package IDs."
+            },
+            "scoop": {
+              "$ref": "#/$defs/stringList",
+              "description": "Scoop package names."
+            }
+          }
+        },
+        "fedora": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "dnf.",
+          "properties": {
+            "dnf": {
+              "$ref": "#/$defs/stringList",
+              "description": "dnf packages."
+            }
+          }
+        },
+        "arch": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "pacman.",
+          "properties": {
+            "pacman": {
+              "$ref": "#/$defs/stringList",
+              "description": "pacman packages."
+            }
           }
         },
         "fedora": {
@@ -101,10 +166,15 @@
       "additionalProperties": false,
       "description": "What `unienv doctor` checks.",
       "properties": {
-        "bins": { "$ref": "#/$defs/stringList", "description": "Commands that must be found on PATH." },
+        "bins": {
+          "$ref": "#/$defs/stringList",
+          "description": "Commands that must be found on PATH."
+        },
         "provided_by": {
           "type": "object",
-          "additionalProperties": { "type": "string" },
+          "additionalProperties": {
+            "type": "string"
+          },
           "description": "Maps a binary to the system package that provides it, so `--exclude <pkg>` skips its check."
         }
       }
@@ -124,7 +194,10 @@
   "$defs": {
     "stringList": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     }
   }
 }

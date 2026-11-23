@@ -30,6 +30,10 @@ cask = ["libreoffice"]
 [system.debian]
 apt = ["pandoc", "libreoffice-writer", "libreoffice-calc", "libreoffice-impress"]
 
+[system.windows]
+winget = ["JohnMacFarlane.Pandoc", "TheDocumentFoundation.LibreOffice"]
+scoop = ["pandoc", "libreoffice"]
+
 [system.fedora]
 dnf = ["pandoc", "libreoffice-writer", "libreoffice-calc", "libreoffice-impress"]
 
