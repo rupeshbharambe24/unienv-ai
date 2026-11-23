@@ -22,6 +22,10 @@ dnf = ["graphviz"]
 [system.arch]
 pacman = ["graphviz"]
 
+[system.windows]
+winget = ["Graphviz.Graphviz"]
+scoop = ["graphviz"]
+
 [verify]
 bins = ["dot"]
 

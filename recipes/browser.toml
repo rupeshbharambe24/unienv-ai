@@ -19,6 +19,10 @@ dnf = []
 [system.arch]
 pacman = []
 
+[system.windows]
+winget = []
+scoop = []
+
 [verify]
 bins = []
 
