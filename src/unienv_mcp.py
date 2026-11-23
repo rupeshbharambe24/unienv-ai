@@ -239,6 +239,11 @@ def tool_env() -> dict[str, str]:
         env["PUPPETEER_CACHE_DIR"] = os.environ["PUPPETEER_CACHE_DIR"]
     elif puppeteer_cache.is_dir():
         env["PUPPETEER_CACHE_DIR"] = str(puppeteer_cache)
+    browsers_dir = UNIENV_HOME / "browsers"
+    if "PLAYWRIGHT_BROWSERS_PATH" in os.environ:
+        env["PLAYWRIGHT_BROWSERS_PATH"] = os.environ["PLAYWRIGHT_BROWSERS_PATH"]
+    elif browsers_dir.is_dir():
+        env["PLAYWRIGHT_BROWSERS_PATH"] = str(browsers_dir)
     tmp = os.environ.get("TMPDIR", "/tmp")
     if sys.platform == "darwin" and (tmp == "/tmp" or tmp.startswith("/tmp/")):
         tmp = "/private" + tmp  # Leptonica rewrites /tmp paths (see env.sh)

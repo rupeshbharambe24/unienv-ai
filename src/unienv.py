@@ -733,6 +733,47 @@ def install_python(packages: list[str]) -> None:
     )
 
 
+def install_browsers(*, assume_yes: bool = False, no_system: bool = False) -> None:
+    custom = os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "").strip()
+    if custom == "0":
+        browsers_env = "0"
+    elif custom:
+        p = Path(custom).expanduser()
+        if p.is_absolute():
+            p.mkdir(parents=True, exist_ok=True)
+        browsers_env = str(p)
+    else:
+        browsers_dir = UNIENV_HOME / "browsers"
+        browsers_dir.mkdir(parents=True, exist_ok=True)
+        browsers_env = str(browsers_dir)
+    py = PY_DIR / ".venv/bin/python"
+    if not py.exists():
+        return
+    r = run(
+        [str(py), "-P", "-m", "playwright", "install", "chromium"],
+        env={"PLAYWRIGHT_BROWSERS_PATH": browsers_env},
+        check=False,
+    )
+    if r.returncode != 0:
+        warn(
+            f"playwright browser download failed (exit {r.returncode}); "
+            f"run `PLAYWRIGHT_BROWSERS_PATH={browsers_env} ue-py -m playwright install chromium`"
+        )
+    if not no_system and platform_key() == "debian":
+        deps_cmd = [str(py), "-P", "-m", "playwright", "install-deps", "chromium"]
+        if assume_yes or os.geteuid() == 0:
+            cmd = deps_cmd if os.geteuid() == 0 else ["sudo", *deps_cmd]
+            if run(cmd, check=False).returncode != 0:
+                warn("playwright install-deps failed; run: " + " ".join(cmd))
+        else:
+            warned_marker = UNIENV_HOME / "browsers" / ".deps-hint-shown"
+            if not warned_marker.exists():
+                warn("Browser system libraries needed on Linux. Run:\n    sudo " + " ".join(deps_cmd))
+                with contextlib.suppress(OSError):
+                    warned_marker.parent.mkdir(parents=True, exist_ok=True)
+                    warned_marker.write_text("1\n")
+
+
 def write_package_json(packages: list[str]) -> None:
     NODE_DIR.mkdir(parents=True, exist_ok=True)
     pj = NODE_DIR / "package.json"
@@ -942,6 +983,8 @@ def write_env_sh(state: dict) -> None:
         or (UNIENV_HOME / "cache" / "puppeteer").is_dir()
     ):
         lines.append('export PUPPETEER_CACHE_DIR="${PUPPETEER_CACHE_DIR:-$UNIENV_HOME/cache/puppeteer}"')
+    if "browser" in state.get("batteries", []):
+        lines.append('export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$UNIENV_HOME/browsers}"')
     lines += [
         "# `bash -c` (non-login, non-interactive) reads only $BASH_ENV.",
         '[ -z "${BASH_ENV:-}" ] && export BASH_ENV="$UNIENV_HOME/env.sh"',
@@ -1320,6 +1363,8 @@ def cmd_install(args, *, run_doctor: bool = True) -> int:
         failures = install_system(w, assume_yes=args.yes)
     step(f"Python {PY_VERSION} environment ({len(w['python'])} packages)")
     install_python(w["python"])
+    if "browser" in state.get("batteries", []):
+        install_browsers(assume_yes=args.yes, no_system=args.no_system)
     step(f"Node packages ({len(w['node'])})")
     install_node(w["node"])
     step("Wiring shells and AI tools")
@@ -1562,6 +1607,8 @@ def cmd_need(args) -> int:
     try:
         if kind == "python":
             install_python(w["python"])
+            if "browser" in state.get("batteries", []):
+                install_browsers(assume_yes=args.yes, no_system=True)
         elif kind == "node":
             install_node(w["node"], require_npm=True)
         else:
@@ -1818,6 +1865,8 @@ def cmd_upgrade(args) -> int:
                 uv_cmd.append("--upgrade")
             run(uv_cmd, env={"UV_PROJECT_ENVIRONMENT": str(PY_DIR / ".venv")})
             install_python(w["python"])
+            if "browser" in state.get("batteries", []):
+                install_browsers(assume_yes=False, no_system=True)
             bad_imports = _verify_python_imports(recipes)
             if bad_imports:
                 details = "; ".join(f"{m}: {err}" for m, err in bad_imports.items())

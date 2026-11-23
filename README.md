@@ -161,6 +161,7 @@ It should use `ue-py`, `pdftotext` and `soffice-safe` directly, with no virtuale
 | `ml` | opt-in | scikit-learn, scipy, xgboost, lightgbm, imbalanced-learn, joblib (`libomp` / `libgomp1`) |
 | `speech` | opt-in | faster-whisper (CTranslate2, no PyTorch) + ffmpeg for local audio/video transcription |
 | `diagrams` | opt-in | Graphviz (`dot`) + `@mermaid-js/mermaid-cli` (`mmdc`) for rendering `.dot` and `.mmd` diagrams |
+| `browser` | opt-in | Playwright + one shared headless Chromium in `~/.unienv/browsers` (`PLAYWRIGHT_BROWSERS_PATH`) |
 
 Each battery is a small, declarative [TOML recipe](recipes/office.toml). **Adding one is the easiest way to contribute**: LaTeX, browsers, diagrams, GIS, audio… see [CONTRIBUTING.md](CONTRIBUTING.md#writing-a-recipe).
 
