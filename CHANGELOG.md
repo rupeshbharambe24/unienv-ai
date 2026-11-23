@@ -4,6 +4,15 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+- Native Windows support: winget and Scoop system package backends, `.cmd` shims, and `install.ps1` (`irm …/install.ps1 | iex`). The installer adds `~\.unienv\bin` to your user `PATH`, new terminals see it right away, and `unienv uninstall` removes only that entry. By @KunjMaheshwari in #118. (#8)
+- `unienv export` writes your batteries, excludes and extra packages as portable TOML, and `unienv import <file>` (or `-` for stdin) restores them on another machine after showing the plan. A failed Python, Node or sync step rolls the import back. By @KunjMaheshwari in #117. (#34)
+- Opt-in `diagrams` battery: Graphviz (`dot`) and mermaid-cli (`mmdc`), with Puppeteer's Chromium kept in `~/.unienv/cache/puppeteer`. By @KunjMaheshwari in #98. (#2)
+- Opt-in `browser` battery: Playwright with one shared headless Chromium in `~/.unienv/browsers` (`PLAYWRIGHT_BROWSERS_PATH`) for every tool, kept in step by `unienv need` and `unienv upgrade`. By @KunjMaheshwari in #103. (#3)
+
+### Fixed
+- zsh users with `ZDOTDIR` set: UniEnv now wires `$ZDOTDIR/.zshenv` (the file zsh actually reads), `unienv doctor` probes it, and uninstall removes it. By @KunjMaheshwari in #120. (#23)
+
 ## [0.3.0] - 2026-11-22
 
 36 changes from the community: three security fixes, verified updates, Fedora and Arch Linux support, MCP install for VS Code, Zed, Windsurf and LM Studio, Windsurf, Cline and Roo Code adapters, a Claude Code plugin, a Docker image and Dev Container Feature, `unienv remove`, `unienv upgrade`, `unienv du`, and the `latex`, `ml` and `speech` batteries. Thank you @KunjMaheshwari, who wrote almost all of them, and @bfs2021!
