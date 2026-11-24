@@ -9,9 +9,11 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 - `unienv export` writes your batteries, excludes and extra packages as portable TOML, and `unienv import <file>` (or `-` for stdin) restores them on another machine after showing the plan. A failed Python, Node or sync step rolls the import back. By @KunjMaheshwari in #117. (#34)
 - Opt-in `diagrams` battery: Graphviz (`dot`) and mermaid-cli (`mmdc`), with Puppeteer's Chromium kept in `~/.unienv/cache/puppeteer`. By @KunjMaheshwari in #98. (#2)
 - Opt-in `browser` battery: Playwright with one shared headless Chromium in `~/.unienv/browsers` (`PLAYWRIGHT_BROWSERS_PATH`) for every tool, kept in step by `unienv need` and `unienv upgrade`. By @KunjMaheshwari in #103. (#3)
+- fish and Nushell support: UniEnv wires fish through `fish/conf.d/unienv.fish` and Nushell through its `autoload/unienv.nu` (Nushell 0.102.0+), `unienv doctor` checks both shells, and uninstall removes exactly the files UniEnv created. By @KunjMaheshwari in #130. (#29)
 
 ### Fixed
 - zsh users with `ZDOTDIR` set: UniEnv now wires `$ZDOTDIR/.zshenv` (the file zsh actually reads), `unienv doctor` probes it, and uninstall removes it. By @KunjMaheshwari in #120. (#23)
+- `unienv doctor`'s hostile-alias check now asks your interactive shell for its real alias table, with the agent variables (`CLAUDECODE` and the like) set. It finds aliases from sourced files and respects guards that skip them for agents. By @KunjMaheshwari in #115. (#22)
 
 ## [0.3.0] - 2026-11-22
 
