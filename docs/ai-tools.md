@@ -14,7 +14,7 @@ UniEnv reaches AI tools in two ways:
 | **Windsurf** | `~/.codeium/windsurf/memories/global_rules.md` ([docs](https://docs.windsurf.com/windsurf/cascade/memories#rules)) | none | `~/.codeium/windsurf/` or `windsurf` |
 | **Cline** | `~/.cline/rules/unienv.md` | none | `~/.cline`, Cline CLI, or VS Code/Cursor/Windsurf extension |
 | **Roo Code** | `~/.roo/rules/unienv.md` | none | `~/.roo` or VS Code extension |
-| **Cursor** | paste `~/.unienv/AGENTS.md` into *Settings → Rules → User Rules*; MCP tools via `unienv mcp install --client cursor` | none | manual for now ([#4](https://github.com/rupeshbharambe24/unienv-ai/issues/4)) |
+| **Cursor** | `~/.cursor/rules/unienv.mdc` ([docs](https://docs.cursor.com/context/rules)); MCP tools via `unienv mcp install --client cursor` | none | `~/.cursor/` or `cursor` |
 | **Copilot, Aider** | paste `~/.unienv/AGENTS.md` into the tool's global rules | none | adapters planned, help wanted |
 | **Claude Desktop chat** | **UniEnv MCP server**: `unienv mcp install` or the `.mcpb` extension ([guide](mcp.md)) | n/a | config file |
 | **LM Studio, other MCP apps** | MCP server via `unienv mcp config` | n/a | manual |
@@ -39,6 +39,11 @@ With UniEnv installed, you will see both a `unienv` and a `unienv:unienv` skill,
 **Gemini CLI** loads `~/.gemini/GEMINI.md` as global context.
 
 **Windsurf** loads global rules from `~/.codeium/windsurf/memories/global_rules.md` ([Windsurf Rules docs](https://docs.windsurf.com/windsurf/cascade/memories#rules)).
+
+**Cursor** distinguishes three rule locations ([Cursor Rules docs](https://docs.cursor.com/context/rules)):
+- **Machine-local global rule files** under `~/.cursor/rules/` (`%USERPROFILE%\.cursor\rules\` on Windows): `unienv sync` writes `~/.cursor/rules/unienv.mdc` with `alwaysApply: true` YAML frontmatter so UniEnv instructions apply automatically in every session on that machine without touching other rule files.
+- **Account-synced User Rules** in *Cursor Settings → Rules → User Rules*: stored in Cursor's settings rather than the local filesystem. Machine-local `~/.cursor/rules/*.mdc` files do not automatically sync across devices; if you want cloud-synced rules, you can still paste `~/.unienv/AGENTS.md` into User Rules.
+- **Project-specific rules** under `.cursor/rules/` inside a workspace: UniEnv never creates or modifies project-level `.cursor/rules/` files.
 
 **Desktop apps** don't start a shell and get the system's minimal PATH. That's why MCP servers configured as `npx …` or `uvx …` fail with `spawn ENOENT`. Use absolute paths, for example `"command": "/Users/you/.unienv/bin/ue-py"`.
 

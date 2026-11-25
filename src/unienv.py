@@ -1100,6 +1100,11 @@ def render_skill(manifest: dict, recipes: list[dict]) -> str:
     )
 
 
+CURSOR_MDC_FRONTMATTER = (
+    "---\ndescription: UniEnv AI shared Python, Node.js, and system tools environment\nglobs:\nalwaysApply: true\n---\n"
+)
+
+
 def _vscode_ext_dirs(prefix: str) -> list[Path]:
     out: list[Path] = []
     for ext_root in (
@@ -1176,6 +1181,17 @@ def agent_targets() -> list[dict]:
             "skills": None,
             "owned_rules_file": True,
         },
+        {
+            # https://docs.cursor.com/context/rules
+            "id": "cursor",
+            "name": "Cursor",
+            "detect": [HOME / ".cursor"],
+            "bin": "cursor",
+            "instructions": HOME / ".cursor/rules/unienv.mdc",
+            "skills": None,
+            "owned_rules_file": True,
+            "frontmatter": CURSOR_MDC_FRONTMATTER,
+        },
     ]
 
 
@@ -1192,7 +1208,11 @@ def sync_agents(manifest: dict, recipes: list[dict], *, only_detected: bool = Tr
         if only_detected and not detected(a):
             continue
         try:
-            upsert_block(a["instructions"], block, MD_BEGIN, MD_END)
+            inst = a["instructions"]
+            fm = a.get("frontmatter")
+            if fm and (not inst.exists() or not inst.read_text(encoding="utf-8", errors="surrogateescape").strip()):
+                _write_block_text(inst, fm.rstrip() + "\n\n", os.linesep)
+            upsert_block(inst, block, MD_BEGIN, MD_END)
             if a["skills"] is not None:
                 d = a["skills"] / "unienv"
                 d.mkdir(parents=True, exist_ok=True)
@@ -3227,8 +3247,11 @@ def cmd_uninstall(args) -> int:
         try:
             if remove_block(a["instructions"], MD_BEGIN, MD_END):
                 info(f"  removed block from {a['instructions']}")
-            if a.get("owned_rules_file") and a["instructions"].exists() and not a["instructions"].read_text().strip():
-                a["instructions"].unlink()
+            if a.get("owned_rules_file") and a["instructions"].exists():
+                rem = a["instructions"].read_text(encoding="utf-8", errors="surrogateescape").strip()
+                fm = (a.get("frontmatter") or "").strip()
+                if not rem or (fm and rem == fm):
+                    a["instructions"].unlink()
         except OSError as e:
             warn(f"could not update {a['instructions']} ({e}); remove the UniEnv block manually")
         if a["skills"] is not None and (a["skills"] / "unienv").exists():

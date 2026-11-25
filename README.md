@@ -220,7 +220,7 @@ Details: [How it works](docs/how-it-works.md) · [AI tool integrations](docs/ai-
 | Windsurf | ✅ instructions (`~/.codeium/windsurf/memories/global_rules.md`) + shell |
 | Cline | ✅ global rules + shell |
 | Roo Code | ✅ global rules + shell |
-| Cursor | ◐ shell works, MCP via `unienv mcp install --client cursor`; paste `~/.unienv/AGENTS.md` into User Rules ([adapter wanted](https://github.com/rupeshbharambe24/unienv-ai/issues/4)) |
+| Cursor | ✅ global rules (`~/.cursor/rules/unienv.mdc`) + MCP (`unienv mcp install --client cursor`) + shell |
 | Copilot, Aider | ◐ shell works; paste `~/.unienv/AGENTS.md` into user rules. [Adapters wanted](https://github.com/rupeshbharambe24/unienv-ai/labels/adapter) |
 | **Claude Desktop chat** | ✅ via the UniEnv MCP server: `unienv mcp install` or the one-click `.mcpb` extension ([guide](docs/mcp.md)) |
 | LM Studio & other MCP apps | ✅ via MCP: `unienv mcp config` prints the snippet |
