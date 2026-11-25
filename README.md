@@ -50,7 +50,7 @@ You ask your AI agent to *"fix the table in this Word file"* or *"summarise this
 > ⭐ **If UniEnv is useful to you, please [star the repo](https://github.com/rupeshbharambe24/unienv-ai/stargazers).** It's free, takes one click, and is the main way other people find the project.
 
 <p align="center">
-  <img src="docs/assets/demo.svg" alt="Terminal showing unienv status and unienv doctor: all good" width="780">
+  <img src="docs/assets/demo.gif" alt="Terminal recording comparing the Word document benchmark task without UniEnv (ModuleNotFoundError, PEP 668 externally-managed-environment, creating a temporary virtualenv and installing python-docx) versus with UniEnv (one ue-py command creating report.docx immediately with a visible timer)" width="780">
 </p>
 
 ## ✨ Why UniEnv
