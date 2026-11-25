@@ -10,6 +10,7 @@ All notable changes to UniEnv AI are documented here. The format follows [Keep a
 - Opt-in `diagrams` battery: Graphviz (`dot`) and mermaid-cli (`mmdc`), with Puppeteer's Chromium kept in `~/.unienv/cache/puppeteer`. By @KunjMaheshwari in #98. (#2)
 - Opt-in `browser` battery: Playwright with one shared headless Chromium in `~/.unienv/browsers` (`PLAYWRIGHT_BROWSERS_PATH`) for every tool, kept in step by `unienv need` and `unienv upgrade`. By @KunjMaheshwari in #103. (#3)
 - fish and Nushell support: UniEnv wires fish through `fish/conf.d/unienv.fish` and Nushell through its `autoload/unienv.nu` (Nushell 0.102.0+), `unienv doctor` checks both shells, and uninstall removes exactly the files UniEnv created. By @KunjMaheshwari in #130. (#29)
+- Homebrew formula: each release now includes a `unienv.rb` built from the release tarball and its checksum, and can update a `rupeshbharambe24/homebrew-tap` tap. If UniEnv was installed with Homebrew, `unienv update` tells you to run `brew upgrade unienv` instead. By @KunjMaheshwari in #119. (#39)
 
 ### Fixed
 - zsh users with `ZDOTDIR` set: UniEnv now wires `$ZDOTDIR/.zshenv` (the file zsh actually reads), `unienv doctor` probes it, and uninstall removes it. By @KunjMaheshwari in #120. (#23)
